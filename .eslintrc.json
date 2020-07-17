@@ -1,0 +1,23 @@
+{
+  "extends": [
+    "google",
+    "plugin:jsdoc/recommended"
+  ],
+  "env": {
+    "es6": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 8,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "jsdoc"
+  ],
+  "rules": {
+    "max-len": ["error", 120],
+    "valid-jsdoc": ["error", {
+      "prefer": {"returns": "returns"}
+    }]
+  },
+  "ignorePatterns": ["basis_transcoder.js", "**/third-party"]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "web-texture-tool",
+  "version": "0.0.1",
+  "authors": [
+    "Brandon Jones <tojiro@gmail.com>"
+  ],
+  "description": "Utility to efficiently handle loading of a wide variety of texture formats",
+  "devDependencies": {
+    "esbuild": "^0.5.12",
+    "eslint": "^7.3.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-jsdoc": "^28.0.0"
+  },
+  "license": "MIT",
+  "scripts": {
+    "lint": "npx eslint src",
+    "build": "npm run lint && npm run build-min && npm run build-debug",
+    "build-min": "npx esbuild --bundle src/full-lib.js --target=es6 --outdir=build --minify --sourcemap --format=esm",
+    "build-debug": "npx esbuild --bundle src/full-lib.js --target=es6 --outdir=build/debug --format=esm",
+    "build-docs": "documentation build src/** -f html -o docs"
+  }
+}
