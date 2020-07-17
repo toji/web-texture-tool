@@ -14,6 +14,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
+ * This library offers a unified way of loading textures for both WebGL and WebGPU from various file formats, and in all
+ * cases attempts to handle the loading as efficently as possible. Every effort made to prevent texture loading from
+ * blocking the main thread, since that can often be one of the primary causes of jank during page startup or while
+ * streaming in new assets.
+ *
+ * @file Library for loading various image sources as textures for WebGL or WebGPU
+ * @module WebTextureTool
+ */
+
+/**
  * Texture Format
  *
  * @typedef {string} WebTextureFormat
@@ -39,39 +49,34 @@ const WebTextureFormat = [
 ];
 
 /**
- * A WebGL Texture
+ * Data and description for a single level of a texture.
  *
- * @external WebGLTexture
- * @see {@link https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9}
- */
-
-/**
- * A WebGPU Texture
- *
- * @external GPUTexture
- * @see {@link https://gpuweb.github.io/gpuweb/#gputexture}
+ * @typedef {object} WebTextureLevelData
+ * @property {module:External.ArrayBufferView} data - Buffer containing the data for the texture level.
+ * @property {number} width - Width of the texture level in pixels.
+ * @property {number} height - Height of the texture level in pixels.
  */
 
 /**
  * Texture result from calling one of the WebTextureTool methods
  *
- * @property {(WebGLTexture|GPUTexture)} texture - Completed WebGL or WebGPU texture object
- * @property {number} width of mip level 0 in pixels
- * @property {number} height of mip level 0 in pixels
- * @property {number} depth of mip level 0 in pixels
- * @property {number} mipLevels - Number of mip levels the texture contains
- * @property {WebTextureFormat} format - Format of the texture
+ * @property {(module:External.WebGLTexture|module:External.GPUTexture)} texture - WebGL or WebGPU texture object.
+ * @property {number} width of mip level 0 in pixels.
+ * @property {number} height of mip level 0 in pixels.
+ * @property {number} depth of mip level 0 in pixels.
+ * @property {number} mipLevels - Number of mip levels the texture contains.
+ * @property {WebTextureFormat} format - Format of the texture.
  */
 export class WebTextureResult {
   /**
    * Create an instance of a WebTextureResult.
    *
-   * @param {(WebGLTexture|GPUTexture)} texture - Completed WebGL or WebGPU texture object
-   * @param {number} width of mip level 0 in pixels
-   * @param {number} height of mip level 0 in pixels
-   * @param {number} depth of mip level 0 in pixels
-   * @param {number} mipLevels - Number of mip levels the texture contains
-   * @param {WebTextureFormat} format - Format of the texture
+   * @param {(module:External.WebGLTexture|module:External.GPUTexture)} texture - WebGL or WebGPU texture object.
+   * @param {number} width of mip level 0 in pixels.
+   * @param {number} height of mip level 0 in pixels.
+   * @param {number} depth of mip level 0 in pixels.
+   * @param {number} mipLevels - Number of mip levels the texture contains.
+   * @param {WebTextureFormat} format - Format of the texture.
    */
   constructor(texture, width, height, depth, mipLevels, format) {
     this.texture = texture;
@@ -97,14 +102,35 @@ const IMAGE_TEXTURE_EXTENSIONS = {
 };
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
 
+/**
+ * Loader which handles any image types supported directly by the browser.
+ */
 class ImageTextureLoader {
+  /**
+   * Creates a ImageTextureLoader instance.
+   * Should only be called by the WebTextureTool constructor.
+   */
   constructor() {
   }
 
+  /**
+   * Which file extensions this loader supports.
+   *
+   * @returns {Array<string>} - An array of the file extensions this loader supports.
+   */
   supportedExtensions() {
     return Object.keys(IMAGE_TEXTURE_EXTENSIONS);
   }
 
+  /**
+   * Load a supported file as a texture from the given URL.
+   *
+   * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
+   * @param {string} url - An absolute URL that the texture file should be loaded from.
+   * @param {object} options - Options for how the loaded texture should be handled.
+   * @returns {Promise<WebTextureResult>} - The WebTextureResult obtained from passing the parsed file data to the
+   * client.
+   */
   async loadTextureFromUrl(client, url, options) {
     const format = IMAGE_TEXTURE_EXTENSIONS[options.extension].format;
 
@@ -149,6 +175,9 @@ export class WebTextureTool {
   /**
    * WebTextureTool constructor. Must not be called by applications directly.
    * Create an instance of WebGLTextureTool or WebGPUTextureTool as needed instead.
+   *
+   * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
+   * @param {object} toolOptions - Options to initialize this WebTextureTool instance with.
    */
   constructor(client, toolOptions) {
     const options = Object.assign({}, DEFAULT_TOOL_OPTIONS, toolOptions);
@@ -177,7 +206,8 @@ export class WebTextureTool {
 
   /** Loads a texture from the given URL
    *
-   * @param {string} url - URL of the file to load
+   * @param {string} url - URL of the file to load.
+   * @param {string} textureOptions - Options for how the loaded texture should be handled.
    * @returns {Promise<WebTextureResult>} - Promise which resolves to the completed WebTextureResult
    */
   async loadTextureFromUrl(url, textureOptions) {

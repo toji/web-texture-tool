@@ -13,17 +13,18 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+/**
+ * Supports loading textures for WebGPU, as well as providing common utilities that are not part of the core WebGPU API
+ * such as mipmap generation.
+ *
+ * @file WebGPU client for the Web Texture Tool
+ * @module WebGPUTextureTool
+ */
+
 import {WebTextureTool, WebTextureResult} from './web-texture-tool.js';
 
 // TODO: Replace shaders with WGSL, which won't require a separate compile
 import glslangModule from './third-party/glslang/glslang.js';
-
-/**
- * A WebGPU device
- *
- * @external GPUDevice
- * @see {@link https://gpuweb.github.io/gpuweb/#gpu-device}
- */
 
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
 
@@ -38,6 +39,9 @@ function calculateMipLevels(width, height) {
   return Math.floor(Math.log2(Math.max(width, height))) + 1;
 }
 
+/**
+ * Texture Client that interfaces with WebGPU.
+ */
 class WebGPUTextureClient {
   constructor(device) {
     this.device = device;

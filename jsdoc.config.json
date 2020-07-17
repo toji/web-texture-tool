@@ -1,0 +1,9 @@
+{
+  "source": {
+    "include": ["src"]
+  },
+  "opts": {
+    "recurse": false,
+    "destination": "./docs/"
+  }
+}

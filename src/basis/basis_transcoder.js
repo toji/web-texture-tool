@@ -1,3 +1,9 @@
+/**
+ * @file WASM interface for the Basis Universal transcoder
+ * @author Rich Geldreich
+ *
+ * From https://github.com/BinomialLLC/basis_universal
+ */
 
 var BASIS = (function() {
   var _scriptDir = typeof document !== 'undefined' && document.currentScript ? document.currentScript.src : undefined;

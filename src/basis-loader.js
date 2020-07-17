@@ -14,28 +14,39 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
- * Loads Basis Universal files, handling the transcoding work in a worker.
- *
  * Based on similar loader code I contributed to https://github.com/BinomialLLC/basis_universal
- * Edited to meet the abstraction needs of this library.
+ * Edited to meet the abstraction needs of this library. Handles texture transcoding in a worker to avoid blocking the
+ * main thread.
  *
+ * @file Loader for Basis Universal texture files
  * @module BasisLoader
  */
 
 class PendingTextureRequest {
-  constructor(client, url, mipmaps) {
+  constructor(client, mipmaps, resolve, reject) {
     this.client = client;
-    this.url = url;
     this.mipmaps = mipmaps;
-    this.promise = new Promise((resolve, reject) => {
-      this.resolve = resolve;
-      this.reject = reject;
-    });
+    this.resolve = resolve;
+    this.reject = reject;
+  }
+};
+
+export class BasisLoader {
+  constructor() {
+    this.pendingTextures = {};
+    this.nextPendingTextureId = 1;
+
+    // Load the worker script.
+    const workerPath = import.meta.url.replace('basis-loader.js', 'basis/basis-worker.js');
+    this.worker = new Worker(workerPath);
+    this.worker.onmessage = (msg) => { this.onWorkerMessage(msg); }
   }
 
-  uploadImageData(format, buffer, mipLevels) {
-    const client = this.client;
+  supportedExtensions() {
+    return ['basis'];
+  }
 
+  finishTexture(pendingTexture, format, buffer, mipLevels) {
     const levels = [];
     for (let mipLevel of mipLevels) {
       const level = {
@@ -55,23 +66,7 @@ class PendingTextureRequest {
       levels[mipLevel.level] = level;
     }
 
-    return client.textureFromLevelData(levels, format, this.mipmaps);
-  }
-};
-
-export class BasisLoader {
-  constructor() {
-    this.pendingTextures = {};
-    this.nextPendingTextureId = 1;
-
-    // Load the worker script.
-    const workerPath = import.meta.url.replace('basis-loader.js', 'basis/basis-worker.js');
-    this.worker = new Worker(workerPath);
-    this.worker.onmessage = (msg) => { this.onWorkerMessage(msg); }
-  }
-
-  supportedExtensions() {
-    return ['basis'];
+    return pendingTexture.client.textureFromLevelData(levels, format, pendingTexture.mipmaps);
   }
 
   onWorkerMessage(msg) {
@@ -97,25 +92,22 @@ export class BasisLoader {
     }
 
     // Upload the image data returned by the worker.
-    const result = pendingTexture.uploadImageData(
-        msg.data.format,
-        msg.data.buffer,
-        msg.data.mipLevels);
-
+    const result = this.finishTexture(pendingTexture, msg.data.format, msg.data.buffer, msg.data.mipLevels);
     pendingTexture.resolve(result);
   }
 
   async loadTextureFromUrl(client, url, options) {
-    let pendingTexture = new PendingTextureRequest(client, url, options.mipmaps);
-    this.pendingTextures[this.nextPendingTextureId] = pendingTexture;
+    const pendingTextureId = this.nextPendingTextureId++;
+
     this.worker.postMessage({
-      id: this.nextPendingTextureId,
+      id: pendingTextureId,
       url: url,
       supportedFormats: client.supportedFormats(),
       mipmaps: options.mipmaps,
     });
 
-    this.nextPendingTextureId++;
-    return pendingTexture.promise;
+    return new Promise((resolve, reject) => {
+      this.pendingTextures[pendingTextureId] = new PendingTextureRequest(client, options.mipmaps, resolve, reject);
+    });
   }
 }

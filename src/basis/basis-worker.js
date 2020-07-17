@@ -14,9 +14,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
- * This Worker does the transcoding of BASIS files to a GPU-consumable format.
- *
+ * @file Web Worker for transcoding Basis Universal files
  * @module BasisLoader
+ *
+ * Based on similar loader code I contributed to https://github.com/BinomialLLC/basis_universal
+ * Edited to meet the abstraction needs of this library. This worker handles texture transcoding to avoid blocking the
+ * main thread. Majority of the work is handled by Web Assembly code in basis_transcoder.wasm.
  */
 
 importScripts('basis_transcoder.js');
@@ -253,4 +256,3 @@ onmessage = (msg) => {
     fail(id, `No url or buffer specified`);
   }
 };
-

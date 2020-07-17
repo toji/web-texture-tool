@@ -14,9 +14,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
- * WebGL client for the Web Texture Tool.
- * Supports both WebGL and WebGL 2.0
+ * Supports loading textures for both WebGL and WebGL 2.0
  *
+ * @file WebGL client for the Web Texture Tool
  * @module WebGLTextureTool
  */
 
@@ -49,15 +49,19 @@ const GL_FORMAT_MAP = {
   'etc1-rgb-unorm': {compressed: true, texStorage: false, sizedFormat: 0x8D64}, // COMPRESSED_RGB_ETC1_WEBGL
   'etc2-rgba8unorm': {compressed: true, texStorage: true, sizedFormat: 0x9278}, // COMPRESSED_RGBA8_ETC2_EAC
   'astc-4x4-rgba-unorm': {compressed: true, texStorage: true, sizedFormat: 0x93B0}, // COMPRESSED_RGBA_ASTC_4x4_KHR
-  'pvrtc1-4bpp-rgb-unorm': {compressed: true, texStorage: false, sizedFormat: 0x8C00}, // COMPRESSED_RGB_PVRTC_4BPPV1_IMG
-  'pvrtc1-4bpp-rgba-unorm': {compressed: true, texStorage: false, sizedFormat: 0x8C02}, // COMPRESSED_RGBA_PVRTC_4BPPV1_IMG
+  'pvrtc1-4bpp-rgb-unorm': {
+    compressed: true, texStorage: false, sizedFormat: 0x8C00, // COMPRESSED_RGB_PVRTC_4BPPV1_IMG
+  },
+  'pvrtc1-4bpp-rgba-unorm': {
+    compressed: true, texStorage: false, sizedFormat: 0x8C02, // COMPRESSED_RGBA_PVRTC_4BPPV1_IMG
+  },
 };
 
 /**
  * Determines if the given value is a power of two.
  *
  * @param {number} n - Number to evaluate.
- * @returns {boolean} True if the number is a power of two.
+ * @returns {boolean} - True if the number is a power of two.
  */
 function isPowerOfTwo(n) {
   return (n & (n - 1)) === 0;
@@ -68,7 +72,7 @@ function isPowerOfTwo(n) {
  *
  * @param {number} width of texture level 0.
  * @param {number} height of texture level 0.
- * @returns {number} Ideal number of mip levels.
+ * @returns {number} - Ideal number of mip levels.
  */
 function calculateMipLevels(width, height) {
   return Math.floor(Math.log2(Math.max(width, height))) + 1;
@@ -77,8 +81,8 @@ function calculateMipLevels(width, height) {
 /**
  * Returns the associated WebGL values for the given mapping, if they exist.
  *
- * @param {WebTextureFormat} format - Texture format string.
- * @returns {WebGLMappedFormat} WebGL values that correspond with the given format.
+ * @param {module:WebTextureTool.WebTextureFormat} format - Texture format string.
+ * @returns {WebGLMappedFormat} - WebGL values that correspond with the given format.
  */
 function resolveFormat(format) {
   const glFormat = GL_FORMAT_MAP[format];
@@ -89,7 +93,16 @@ function resolveFormat(format) {
   return glFormat;
 }
 
+/**
+ * Variant of WebTextureClient that uses WebGL.
+ */
 class WebGLTextureClient {
+  /**
+   * Creates a WebTextureClient instance which uses WebGL.
+   * Should not be called outside of the WebGLTextureTool constructor.
+   *
+   * @param {(module:External.WebGLRenderingContext|module:External.WebGL2RenderingContext)} gl - WebGL context to use.
+   */
   constructor(gl) {
     this.gl = gl;
     this.isWebGL2 = this.gl instanceof WebGL2RenderingContext;
@@ -128,11 +141,25 @@ class WebGLTextureClient {
     }
   }
 
+  /**
+   * Returns a list of the WebTextureFormats that this client can support.
+   *
+   * @returns {Array<module:WebTextureTool.WebTextureFormat>} - List of supported WebTextureFormats.
+   */
   supportedFormats() {
     return this.supportedFormatList;
   }
 
-  async textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
+  /**
+   * Creates a WebGLTexture from the given ImageBitmap.
+   *
+   * @param {module:External.ImageBitmap} imageBitmap - ImageBitmap source for the texture.
+   * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the texture as on the GPU. Must be an
+   * uncompressed format.
+   * @param {boolean} generateMipmaps - True if mipmaps are desired.
+   * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
+   */
+  textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
     const gl = this.gl;
 
     // For WebGL 1.0 only generate mipmaps if the texture is a power of two size.
@@ -163,11 +190,30 @@ class WebGLTextureClient {
     return new WebTextureResult(texture, imageBitmap.width, imageBitmap.height, 1, mipLevels, format);
   }
 
-  async textureFromImageElement(image, format, generateMipmaps) {
+  /**
+   * Creates a WebGLTexture from the given HTMLImageElement.
+   *
+   * @param {module:External.HTMLImageElement} image - image source for the texture.
+   * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the texture as on the GPU. Must be an
+   * uncompressed format.
+   * @param {boolean} generateMipmaps - True if mipmaps are desired.
+   * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
+   */
+  textureFromImageElement(image, format, generateMipmaps) {
     // The methods called to createa a texture from an image element are exactly the same as the imageBitmap path.
     return this.textureFromImageBitmap(image, format, generateMipmaps);
   }
 
+  /**
+   * Creates a WebGLTexture from the given HTMLImageElement.
+   *
+   * @param {Array<module:WebTextureTool.WebTextureLevelData>} levels - An array of data and descriptions for each mip
+   * level of the texture.
+   * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the data is provided in. May be a
+   * compressed format.
+   * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies is a single level is given.
+   * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
+   */
   textureFromLevelData(levels, format, generateMipmaps) {
     const gl = this.gl;
     const glFormat = resolveFormat(format);
@@ -235,28 +281,14 @@ class WebGLTextureClient {
 }
 
 /**
- * A WebGL context
- *
- * @external WebGLRenderingContext
- * @see {@link https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14}
- */
-
-/**
- * A WebGL 2.0 context
- *
- * @external WebGL2RenderingContext
- * @see {@link https://www.khronos.org/registry/webgl/specs/latest/2.0/#3.7}
- */
-
-/**
  * Variant of WebTextureTool which produces WebGL textures.
  */
 export class WebGLTextureTool extends WebTextureTool {
   /**
    * Creates a WebTextureTool instance which produces WebGL textures.
    *
-   * @param {(WebGLRenderingContext|WebGL2RenderingContext)} gl - WebGL context to create textures with.
-   * @param {object} toolOptions - Options to initialize this Web Texture Tool instance with
+   * @param {(module:External.WebGLRenderingContext|module:External.WebGL2RenderingContext)} gl - WebGL context to use.
+   * @param {object} toolOptions - Options to initialize this WebTextureTool instance with.
    */
   constructor(gl, toolOptions) {
     super(new WebGLTextureClient(gl), toolOptions);
