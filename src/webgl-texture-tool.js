@@ -43,14 +43,14 @@ const GL_FORMAT_MAP = {
   'rgba4unorm': {format: GL.RGBA, type: GL.UNSIGNED_SHORT_4_4_4_4, sizedFormat: GL.RGBA4},
 
   // Compressed formats enums from http://www.khronos.org/registry/webgl/extensions/
-  'bc1-rgb-unorm': {compressed: true, sizedFormat: 0x83F0}, // COMPRESSED_RGB_S3TC_DXT1_EXT
-  'bc3-rgba-unorm': {compressed: true, sizedFormat: 0x83F3}, // COMPRESSED_RGBA_S3TC_DXT5_EXT
-  'bc7-rgba-unorm': {compressed: true, sizedFormat: 0x8E8C}, // COMPRESSED_RGBA_BPTC_UNORM_EXT
-  'etc1-rgb-unorm': {compressed: true, sizedFormat: 0x8D64}, // COMPRESSED_RGB_ETC1_WEBGL
-  'etc2-rgba8unorm': {compressed: true, sizedFormat: 0x9278}, // COMPRESSED_RGBA8_ETC2_EAC
-  'astc-4x4-rgba-unorm': {compressed: true, sizedFormat: 0x93B0}, // COMPRESSED_RGBA_ASTC_4x4_KHR
-  'pvrtc1-4bpp-rgb-unorm': {compressed: true, sizedFormat: 0x8C00}, // COMPRESSED_RGB_PVRTC_4BPPV1_IMG
-  'pvrtc1-4bpp-rgba-unorm': {compressed: true, sizedFormat: 0x8C02}, // COMPRESSED_RGBA_PVRTC_4BPPV1_IMG
+  'bc1-rgb-unorm': {compressed: true, texStorage: true, sizedFormat: 0x83F0}, // COMPRESSED_RGB_S3TC_DXT1_EXT
+  'bc3-rgba-unorm': {compressed: true, texStorage: true, sizedFormat: 0x83F3}, // COMPRESSED_RGBA_S3TC_DXT5_EXT
+  'bc7-rgba-unorm': {compressed: true, texStorage: true, sizedFormat: 0x8E8C}, // COMPRESSED_RGBA_BPTC_UNORM_EXT
+  'etc1-rgb-unorm': {compressed: true, texStorage: false, sizedFormat: 0x8D64}, // COMPRESSED_RGB_ETC1_WEBGL
+  'etc2-rgba8unorm': {compressed: true, texStorage: true, sizedFormat: 0x9278}, // COMPRESSED_RGBA8_ETC2_EAC
+  'astc-4x4-rgba-unorm': {compressed: true, texStorage: true, sizedFormat: 0x93B0}, // COMPRESSED_RGBA_ASTC_4x4_KHR
+  'pvrtc1-4bpp-rgb-unorm': {compressed: true, texStorage: false, sizedFormat: 0x8C00}, // COMPRESSED_RGB_PVRTC_4BPPV1_IMG
+  'pvrtc1-4bpp-rgba-unorm': {compressed: true, texStorage: false, sizedFormat: 0x8C02}, // COMPRESSED_RGBA_PVRTC_4BPPV1_IMG
 };
 
 /**
@@ -188,14 +188,16 @@ class WebGLTextureClient {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    if (this.isWebGL2) {
+    const useTexStorage = this.isWebGL2 && (!glFormat.compressed || glFormat.texStorage);
+
+    if (useTexStorage) {
       gl.texStorage2D(gl.TEXTURE_2D, mipLevels, glFormat.sizedFormat, level0.width, level0.height);
     }
 
     for (let i = 0; i < levels.length; ++i) {
       const level = levels[i];
       if (glFormat.compressed) {
-        if (this.isWebGL2) {
+        if (useTexStorage) {
           gl.compressedTexSubImage2D(
               gl.TEXTURE_2D, i,
               0, 0, level.width, level.height,
@@ -208,7 +210,7 @@ class WebGLTextureClient {
               level.data);
         }
       } else {
-        if (this.isWebGL2) {
+        if (useTexStorage) {
           gl.texSubImage2D(
               gl.TEXTURE_2D, i,
               0, 0, level.width, level.height,
