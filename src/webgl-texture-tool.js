@@ -205,13 +205,13 @@ class WebGLTextureClient {
   }
 
   /**
-   * Creates a WebGLTexture from the given HTMLImageElement.
+   * Creates a WebGLTexture from the given texture level data.
    *
    * @param {Array<module:WebTextureTool.WebTextureLevelData>} levels - An array of data and descriptions for each mip
    * level of the texture.
    * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the data is provided in. May be a
    * compressed format.
-   * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies is a single level is given.
+   * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
   textureFromLevelData(levels, format, generateMipmaps) {

@@ -7,7 +7,7 @@
     "es6": true
   },
   "parserOptions": {
-    "ecmaVersion": 8,
+    "ecmaVersion": 2020,
     "sourceType": "module"
   },
   "plugins": [
@@ -19,5 +19,5 @@
       "prefer": {"returns": "returns"}
     }]
   },
-  "ignorePatterns": ["basis_transcoder.js", "**/third-party"]
+  "ignorePatterns": ["basis_transcoder.js", "**/third-party", "dds-loader.js", "dds-worker.js"]
 }

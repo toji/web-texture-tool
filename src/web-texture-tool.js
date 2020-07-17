@@ -208,7 +208,7 @@ export class WebTextureTool {
    *
    * @param {string} url - URL of the file to load.
    * @param {string} textureOptions - Options for how the loaded texture should be handled.
-   * @returns {Promise<WebTextureResult>} - Promise which resolves to the completed WebTextureResult
+   * @returns {Promise<WebTextureResult>} - Promise which resolves to the completed WebTextureResult.
    */
   async loadTextureFromUrl(url, textureOptions) {
     const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);

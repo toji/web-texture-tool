@@ -81,7 +81,13 @@ WTT_FORMAT_MAP[BASIS_FORMAT.cTFRGBA32] = {format: 'rgba8unorm', uncompressed: tr
 WTT_FORMAT_MAP[BASIS_FORMAT.cTFRGB565] = {format: 'rgb565unorm', uncompressed: true};
 WTT_FORMAT_MAP[BASIS_FORMAT.cTFRGBA4444] = {format: 'rgba4unorm', uncompressed: true};
 
-// Notifies the main thread when a texture has failed to load for any reason.
+/**
+ * Notifies the main thread when transcoding a texture has failed to load for any reason.
+ *
+ * @param {number} id - Identifier for the texture being transcoded.
+ * @param {string} errorMsg - Description of the error that occured
+ * @returns {void}
+ */
 function fail(id, errorMsg) {
   postMessage({
     id: id,
@@ -89,6 +95,15 @@ function fail(id, errorMsg) {
   });
 }
 
+/**
+ * Notifies the main thread when transcoding a texture has failed to load for any reason and closes/deletes the open
+ * basisFile.
+ *
+ * @param {number} id - Identifier for the texture being transcoded.
+ * @param {object} basisFile - Open basis file to be closed
+ * @param {string} errorMsg - Description of the error that occured
+ * @returns {void}
+ */
 function basisFileFail(id, basisFile, errorMsg) {
   fail(id, errorMsg);
   basisFile.close();
@@ -98,6 +113,16 @@ function basisFileFail(id, basisFile, errorMsg) {
 // This utility currently only transcodes the first image in the file.
 const IMAGE_INDEX = 0;
 
+/**
+ * Transcodes basis universal texture data into the optimal supported format and sends the resulting data back to the
+ * main thread.
+ *
+ * @param {number} id - Identifier for the texture being transcoded.
+ * @param {module:External.ArrayBufferView} arrayBuffer - Array buffer containing the data to transcode.
+ * @param {Array<module:WebTextureTool.WebTextureFormat>} supportedFormats - Formats which the target API can support.
+ * @param {boolean} mipmaps - True if all available mip levels should be transcoded.
+ * @returns {void}
+ */
 function transcode(id, arrayBuffer, supportedFormats, mipmaps) {
   const basisData = new Uint8Array(arrayBuffer);
 
@@ -222,6 +247,7 @@ onmessage = (msg) => {
 
   // The formats this device supports
   const supportedFormats = {};
+  // eslint-disable-next-line guard-for-in
   for (const basisFormat in WTT_FORMAT_MAP) {
     const wttFormat = WTT_FORMAT_MAP[basisFormat];
     supportedFormats[basisFormat] = msg.data.supportedFormats.indexOf(wttFormat.format) > -1;

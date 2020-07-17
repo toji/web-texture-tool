@@ -1,6 +1,11 @@
 {
   "source": {
-    "include": ["src"]
+    "include": ["src"],
+    "excludePattern": [
+      "src/basis",
+      "src/dds",
+      "src/third-party"
+    ]
   },
   "opts": {
     "recurse": false,

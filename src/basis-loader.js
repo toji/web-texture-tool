@@ -22,7 +22,18 @@
  * @module BasisLoader
  */
 
+/**
+ * Tracks required data for fulfilling a texture request once it has been transcoded.
+ */
 class PendingTextureRequest {
+  /**
+   * Creates a PendingTextureRequest instance.
+   *
+   * @param {object} client - The WebTextureClient that will upload the transcoded data.
+   * @param {*} mipmaps - True if mipmaps are desired.
+   * @param {*} resolve - Success callback.
+   * @param {*} reject - Failure callback.
+   */
   constructor(client, mipmaps, resolve, reject) {
     this.client = client;
     this.mipmaps = mipmaps;
@@ -31,7 +42,13 @@ class PendingTextureRequest {
   }
 };
 
+/**
+ * Loader which handles Basis Universal files.
+ */
 export class BasisLoader {
+  /**
+   * Creates a BasisLoader instance.
+   */
   constructor() {
     this.pendingTextures = {};
     this.nextPendingTextureId = 1;
@@ -39,16 +56,32 @@ export class BasisLoader {
     // Load the worker script.
     const workerPath = import.meta.url.replace('basis-loader.js', 'basis/basis-worker.js');
     this.worker = new Worker(workerPath);
-    this.worker.onmessage = (msg) => { this.onWorkerMessage(msg); }
+    this.worker.onmessage = (msg) => {
+      this.onWorkerMessage(msg);
+    };
   }
 
+  /**
+   * Which file extensions this loader supports.
+   *
+   * @returns {Array<string>} - An array of the file extensions this loader supports.
+   */
   supportedExtensions() {
     return ['basis'];
   }
 
+  /**
+   * Prepares the transcoded level data and passes it to the given client.
+   *
+   * @param {PendingTextureRequest} pendingTexture - Pending texture request.
+   * @param {module:WebTextureTool.WebTextureFormat} format - Format the texture was transcoded to.
+   * @param {module:External.ArrayBufferView} buffer - Buffer which contains all transcoded mip level data, packed.
+   * @param {Array<object>} mipLevels - Description of size and offset of each mip level in buffer.
+   * @returns {Promise<module:WebTextureTool.WebTextureResult>} - Completed texture.
+   */
   finishTexture(pendingTexture, format, buffer, mipLevels) {
     const levels = [];
-    for (let mipLevel of mipLevels) {
+    for (const mipLevel of mipLevels) {
       const level = {
         width: mipLevel.width,
         height: mipLevel.height,
@@ -69,10 +102,16 @@ export class BasisLoader {
     return pendingTexture.client.textureFromLevelData(levels, format, pendingTexture.mipmaps);
   }
 
+  /**
+   * Called when the worker either finished transcoding a file or encounters an error.
+   *
+   * @param {object} msg - Message contents from the worker
+   * @returns {void}
+   */
   onWorkerMessage(msg) {
     // Find the pending texture associated with the data we just received
     // from the worker.
-    let pendingTexture = this.pendingTextures[msg.data.id];
+    const pendingTexture = this.pendingTextures[msg.data.id];
     if (!pendingTexture) {
       if (msg.data.error) {
         console.error(`Basis transcode failed: ${msg.data.error}`);
@@ -96,6 +135,15 @@ export class BasisLoader {
     pendingTexture.resolve(result);
   }
 
+  /**
+   * Load a supported file as a texture from the given URL.
+   *
+   * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
+   * @param {string} url - An absolute URL that the texture file should be loaded from.
+   * @param {object} options - Options for how the loaded texture should be handled.
+   * @returns {Promise<module:WebTextureLoader.WebTextureResult>} - The WebTextureResult obtained from passing the
+   * parsed file data to the client.
+   */
   async loadTextureFromUrl(client, url, options) {
     const pendingTextureId = this.nextPendingTextureId++;
 

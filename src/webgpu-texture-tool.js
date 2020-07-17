@@ -43,6 +43,12 @@ function calculateMipLevels(width, height) {
  * Texture Client that interfaces with WebGPU.
  */
 class WebGPUTextureClient {
+  /**
+   * Creates a WebTextureClient instance which uses WebGPU.
+   * Should not be called outside of the WebGLTextureTool constructor.
+   *
+   * @param {module:External.GPUDevice} device - WebGPU device to use.
+   */
   constructor(device) {
     this.device = device;
 
@@ -96,10 +102,24 @@ class WebGPUTextureClient {
     });
   }
 
+  /**
+   * Returns a list of the WebTextureFormats that this client can support.
+   *
+   * @returns {Array<module:WebTextureTool.WebTextureFormat>} - List of supported WebTextureFormats.
+   */
   supportedFormats() {
     return this.supportedFormatList;
   }
 
+  /**
+   * Creates a GPUTexture from the given ImageBitmap.
+   *
+   * @param {module:External.ImageBitmap} imageBitmap - ImageBitmap source for the texture.
+   * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the texture as on the GPU. Must be an
+   * uncompressed format.
+   * @param {boolean} generateMipmaps - True if mipmaps are desired.
+   * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
+   */
   async textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
     const mipLevelCount = generateMipmaps ? calculateMipLevels(imageBitmap.width, imageBitmap.height) : 1;
     const textureDescriptor = {
@@ -119,6 +139,17 @@ class WebGPUTextureClient {
     return new WebTextureResult(texture, imageBitmap.width, imageBitmap.height, 1, 1, format);
   }
 
+  /**
+   * Creates a GPUTexture from the given HTMLImageElement.
+   * Note that WebGPU cannot consume image elements directly, so this method will attempt to create an ImageBitmap and
+   * pass that to textureFromImageBitmap instead.
+   *
+   * @param {module:External.HTMLImageElement} image - image source for the texture.
+   * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the texture as on the GPU. Must be an
+   * uncompressed format.
+   * @param {boolean} generateMipmaps - True if mipmaps are desired.
+   * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
+   */
   async textureFromImageElement(image, format, generateMipmaps) {
     if (!IMAGE_BITMAP_SUPPORTED) {
       throw new Error('Must support ImageBitmap to use WebGPU. (How did you even get to this error?)');
@@ -127,6 +158,16 @@ class WebGPUTextureClient {
     return this.textureFromImageBitmap(imageBitmap, format, generateMipmaps);
   }
 
+  /**
+   * Creates a GPUTexture from the given texture level data.
+   *
+   * @param {Array<module:WebTextureTool.WebTextureLevelData>} levels - An array of data and descriptions for each mip
+   * level of the texture.
+   * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the data is provided in. May be a
+   * compressed format.
+   * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given.
+   * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
+   */
   textureFromLevelData(levels, format, generateMipmaps) {
     const level0 = levels[0];
     const mipLevelCount = generateMipmaps ? calculateMipLevels(level0.width, level0.height) : 1;
@@ -163,6 +204,13 @@ class WebGPUTextureClient {
     return new WebTextureResult(texture, width, height, 1, 1, format);
   }
 
+  /**
+   * Generates mipmaps for the given GPUTexture from the data in level 0.
+   *
+   * @param {module:External.GPUTexture} texture - Texture to generate mipmaps for.
+   * @param {object} textureDescriptor - GPUTextureDescriptor the texture was created with.
+   * @returns {module:External.GPUTexture} - The originally passed texture
+   */
   async generateMipmap(texture, textureDescriptor) {
     await this.mipmapReady;
 
@@ -234,7 +282,8 @@ export class WebGPUTextureTool extends WebTextureTool {
   /**
    * Creates a WebTextureTool instance which produces WebGPU textures.
    *
-   * @param {GPUDevice} device - WebGPU device to create textures with.
+   * @param {module:External.GPUDevice} device - WebGPU device to create textures with.
+   * @param {object} toolOptions - Options to initialize this WebTextureTool instance with.
    */
   constructor(device, toolOptions) {
     super(new WebGPUTextureClient(device), toolOptions);

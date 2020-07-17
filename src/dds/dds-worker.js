@@ -22,54 +22,60 @@
 // http://msdn.microsoft.com/en-us/library/bb943991.aspx/
 const DDS_MAGIC = 0x20534444;
 
-const DDSD_CAPS = 0x1,
-    DDSD_HEIGHT = 0x2,
-    DDSD_WIDTH = 0x4,
-    DDSD_PITCH = 0x8,
-    DDSD_PIXELFORMAT = 0x1000,
-    DDSD_MIPMAPCOUNT = 0x20000,
-    DDSD_LINEARSIZE = 0x80000,
-    DDSD_DEPTH = 0x800000;
+const DDSD_CAPS = 0x1;
+const DDSD_HEIGHT = 0x2;
+const DDSD_WIDTH = 0x4;
+const DDSD_PITCH = 0x8;
+const DDSD_PIXELFORMAT = 0x1000;
+const DDSD_MIPMAPCOUNT = 0x20000;
+const DDSD_LINEARSIZE = 0x80000;
+const DDSD_DEPTH = 0x800000;
 
-const DDSCAPS_COMPLEX = 0x8,
-    DDSCAPS_MIPMAP = 0x400000,
-    DDSCAPS_TEXTURE = 0x1000;
+const DDSCAPS_COMPLEX = 0x8;
+const DDSCAPS_MIPMAP = 0x400000;
+const DDSCAPS_TEXTURE = 0x1000;
 
-const DDSCAPS2_CUBEMAP = 0x200,
-    DDSCAPS2_CUBEMAP_POSITIVEX = 0x400,
-    DDSCAPS2_CUBEMAP_NEGATIVEX = 0x800,
-    DDSCAPS2_CUBEMAP_POSITIVEY = 0x1000,
-    DDSCAPS2_CUBEMAP_NEGATIVEY = 0x2000,
-    DDSCAPS2_CUBEMAP_POSITIVEZ = 0x4000,
-    DDSCAPS2_CUBEMAP_NEGATIVEZ = 0x8000,
-    DDSCAPS2_VOLUME = 0x200000;
+const DDSCAPS2_CUBEMAP = 0x200;
+const DDSCAPS2_CUBEMAP_POSITIVEX = 0x400;
+const DDSCAPS2_CUBEMAP_NEGATIVEX = 0x800;
+const DDSCAPS2_CUBEMAP_POSITIVEY = 0x1000;
+const DDSCAPS2_CUBEMAP_NEGATIVEY = 0x2000;
+const DDSCAPS2_CUBEMAP_POSITIVEZ = 0x4000;
+const DDSCAPS2_CUBEMAP_NEGATIVEZ = 0x8000;
+const DDSCAPS2_VOLUME = 0x200000;
 
-const DDPF_ALPHAPIXELS = 0x1,
-    DDPF_ALPHA = 0x2,
-    DDPF_FOURCC = 0x4,
-    DDPF_RGB = 0x40,
-    DDPF_YUV = 0x200,
-    DDPF_LUMINANCE = 0x20000;
+const DDPF_ALPHAPIXELS = 0x1;
+const DDPF_ALPHA = 0x2;
+const DDPF_FOURCC = 0x4;
+const DDPF_RGB = 0x40;
+const DDPF_YUV = 0x200;
+const DDPF_LUMINANCE = 0x20000;
 
+/**
+ * @param value
+ */
 function fourCCToInt32(value) {
-    return value.charCodeAt(0) +
+  return value.charCodeAt(0) +
         (value.charCodeAt(1) << 8) +
         (value.charCodeAt(2) << 16) +
         (value.charCodeAt(3) << 24);
 }
 
+/**
+ * @param value
+ */
 function int32ToFourCC(value) {
-    return String.fromCharCode(
-        value & 0xff,
-        (value >> 8) & 0xff,
-        (value >> 16) & 0xff,
-        (value >> 24) & 0xff
-    );
+  return String.fromCharCode(
+      value & 0xff,
+      (value >> 8) & 0xff,
+      (value >> 16) & 0xff,
+      (value >> 24) & 0xff,
+  );
 }
 
-const FOURCC_DXT1 = fourCCToInt32("DXT1");
-const FOURCC_DXT3 = fourCCToInt32("DXT3");
-const FOURCC_DXT5 = fourCCToInt32("DXT5");
+const FOURCC_DXT1 = fourCCToInt32('DXT1');
+const FOURCC_DXT3 = fourCCToInt32('DXT3');
+const FOURCC_DXT5 = fourCCToInt32('DXT5');
 
 const headerLengthInt = 31; // The header length in 32 bit ints
 
@@ -87,7 +93,7 @@ const off_pfFlags = 20;
 const off_pfFourCC = 21;
 
 // Little reminder for myself where the above values come from
-/*DDS_PIXELFORMAT {
+/* DDS_PIXELFORMAT {
     int32 dwSize; // offset: 19
     int32 dwFlags;
     char[4] dwFourCC;
@@ -119,77 +125,78 @@ DDS_HEADER {
  * Transcodes DXT into RGB565.
  * Optimizations:
  * 1. Use integer math to compute c2 and c3 instead of floating point
- *    math.  Specifically:
- *      c2 = 5/8 * c0 + 3/8 * c1
- *      c3 = 3/8 * c0 + 5/8 * c1
- *    This is about a 40% performance improvement.  It also appears to
- *    match what hardware DXT decoders do, as the colors produced
- *    by this integer math match what hardware produces, while the
- *    floating point in dxtToRgb565Unoptimized() produce slightly
- *    different colors (for one GPU this was tested on).
+ * math.  Specifically:
+ * c2 = 5/8 * c0 + 3/8 * c1
+ * c3 = 3/8 * c0 + 5/8 * c1
+ * This is about a 40% performance improvement.  It also appears to
+ * match what hardware DXT decoders do, as the colors produced
+ * by this integer math match what hardware produces, while the
+ * floating point in dxtToRgb565Unoptimized() produce slightly
+ * different colors (for one GPU this was tested on).
  * 2. Unroll the inner loop.  Another ~10% improvement.
  * 3. Compute r0, g0, b0, r1, g1, b1 only once instead of twice.
- *    Another 10% improvement.
+ * Another 10% improvement.
  * 4. Use a Uint16Array instead of a Uint8Array.  Another 10% improvement.
  *
  * @author Evan Parker
  * @param {Uint16Array} src The src DXT bits as a Uint16Array.
  * @param {number} srcByteOffset
+ * @param src16Offset
  * @param {number} width
  * @param {number} height
- * @return {Uint16Array} dst
+ * @returns {Uint16Array} dst
  */
 function dxtToRgb565(src, src16Offset, width, height) {
-  var c = new Uint16Array(4);
-  var dst = new Uint16Array(width * height);
-  var nWords = (width * height) / 4;
-  var m = 0;
-  var dstI = 0;
-  var i = 0;
-  var rb0 = 0, g0 = 0, rb1 = 0, g1 = 0;
+  const c = new Uint16Array(4);
+  const dst = new Uint16Array(width * height);
+  const nWords = (width * height) / 4;
+  let m = 0;
+  let dstI = 0;
+  let i = 0;
+  let rb0 = 0; let g0 = 0; let rb1 = 0; let g1 = 0;
 
-  var blockWidth = width / 4;
-  var blockHeight = height / 4;
-  for (var blockY = 0; blockY < blockHeight; blockY++) {
-      for (var blockX = 0; blockX < blockWidth; blockX++) {
-          i = src16Offset + 4 * (blockY * blockWidth + blockX);
-          c[0] = src[i];
-          c[1] = src[i + 1];
-          rb0 = c[0] & 0xf81f;
-          g0 = c[0] & 0x7e0;
-          rb1 = c[1] & 0xf81f;
-          g1 = c[1] & 0x7e0;
-          // Interpolate between c0 and c1 to get c2 and c3.
-          // Note that we approximate 1/3 as 3/8 and 2/3 as 5/8 for
-          // speed.  This also appears to be what the hardware DXT
-          // decoder in many GPUs does :)
-          c[2] = (((5 * rb0 + 3 * rb1) >> 3) & 0xf81f)
-                | (((5 * g0 + 3 * g1) >> 3) & 0x7e0);
-          c[3] = (((5 * rb1 + 3 * rb0) >> 3) & 0xf81f)
-                | (((5 * g1 + 3 * g0) >> 3) & 0x7e0);
-          m = src[i + 2];
-          dstI = (blockY * 4) * width + blockX * 4;
-          dst[dstI] = c[m & 0x3];
-          dst[dstI + 1] = c[(m >> 2) & 0x3];
-          dst[dstI + 2] = c[(m >> 4) & 0x3];
-          dst[dstI + 3] = c[(m >> 6) & 0x3];
-          dstI += width;
-          dst[dstI] = c[(m >> 8) & 0x3];
-          dst[dstI + 1] = c[(m >> 10) & 0x3];
-          dst[dstI + 2] = c[(m >> 12) & 0x3];
-          dst[dstI + 3] = c[(m >> 14)];
-          m = src[i + 3];
-          dstI += width;
-          dst[dstI] = c[m & 0x3];
-          dst[dstI + 1] = c[(m >> 2) & 0x3];
-          dst[dstI + 2] = c[(m >> 4) & 0x3];
-          dst[dstI + 3] = c[(m >> 6) & 0x3];
-          dstI += width;
-          dst[dstI] = c[(m >> 8) & 0x3];
-          dst[dstI + 1] = c[(m >> 10) & 0x3];
-          dst[dstI + 2] = c[(m >> 12) & 0x3];
-          dst[dstI + 3] = c[(m >> 14)];
-      }
+  const blockWidth = width / 4;
+  const blockHeight = height / 4;
+  for (let blockY = 0; blockY < blockHeight; blockY++) {
+    for (let blockX = 0; blockX < blockWidth; blockX++) {
+      i = src16Offset + 4 * (blockY * blockWidth + blockX);
+      c[0] = src[i];
+      c[1] = src[i + 1];
+      rb0 = c[0] & 0xf81f;
+      g0 = c[0] & 0x7e0;
+      rb1 = c[1] & 0xf81f;
+      g1 = c[1] & 0x7e0;
+      // Interpolate between c0 and c1 to get c2 and c3.
+      // Note that we approximate 1/3 as 3/8 and 2/3 as 5/8 for
+      // speed.  This also appears to be what the hardware DXT
+      // decoder in many GPUs does :)
+      c[2] = (((5 * rb0 + 3 * rb1) >> 3) & 0xf81f) |
+                (((5 * g0 + 3 * g1) >> 3) & 0x7e0);
+      c[3] = (((5 * rb1 + 3 * rb0) >> 3) & 0xf81f) |
+                (((5 * g1 + 3 * g0) >> 3) & 0x7e0);
+      m = src[i + 2];
+      dstI = (blockY * 4) * width + blockX * 4;
+      dst[dstI] = c[m & 0x3];
+      dst[dstI + 1] = c[(m >> 2) & 0x3];
+      dst[dstI + 2] = c[(m >> 4) & 0x3];
+      dst[dstI + 3] = c[(m >> 6) & 0x3];
+      dstI += width;
+      dst[dstI] = c[(m >> 8) & 0x3];
+      dst[dstI + 1] = c[(m >> 10) & 0x3];
+      dst[dstI + 2] = c[(m >> 12) & 0x3];
+      dst[dstI + 3] = c[(m >> 14)];
+      m = src[i + 3];
+      dstI += width;
+      dst[dstI] = c[m & 0x3];
+      dst[dstI + 1] = c[(m >> 2) & 0x3];
+      dst[dstI + 2] = c[(m >> 4) & 0x3];
+      dst[dstI + 3] = c[(m >> 6) & 0x3];
+      dstI += width;
+      dst[dstI] = c[(m >> 8) & 0x3];
+      dst[dstI + 1] = c[(m >> 10) & 0x3];
+      dst[dstI + 2] = c[(m >> 12) & 0x3];
+      dst[dstI + 3] = c[(m >> 14)];
+    }
   }
   return dst;
 }
