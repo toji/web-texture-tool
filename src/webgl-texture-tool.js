@@ -272,7 +272,7 @@ class WebGLTextureClient {
       }
     }
 
-    if (generateMipmaps && !glFormat.compressed && levels.length == 1) {
+    if (generateMipmaps && levels.length == 1) {
       gl.generateMipmap(gl.TEXTURE_2D);
     }
 

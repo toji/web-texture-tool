@@ -48,7 +48,6 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
     <script type='module'>
       import {WebGLTextureTool} from '../src/webgl-texture-tool.js';
-      import {BasisLoader} from '../src/basis-loader.js';
 
       import {vec3, mat4} from './gl-matrix/src/gl-matrix.js';
       import * as Util from './gl-utils.js';
@@ -56,9 +55,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
       const canvas = document.getElementById('output-canvas');
       const gl = canvas.getContext('webgl2');
 
-      const wtt = new WebGLTextureTool(gl, {
-        loaders: [new BasisLoader()]
-      });
+      const wtt = new WebGLTextureTool(gl);
 
       const attributes = {
         position: 0,

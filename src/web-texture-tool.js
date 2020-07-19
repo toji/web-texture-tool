@@ -23,6 +23,9 @@
  * @module WebTextureTool
  */
 
+import {ImageLoader} from './image-loader.js';
+import {WorkerLoader} from './worker-loader.js';
+
 /**
  * Texture Format
  *
@@ -88,79 +91,31 @@ export class WebTextureResult {
   }
 }
 
-const IMAGE_TEXTURE_EXTENSIONS = {
-  jpg: {format: 'rgb8unorm'},
-  jpeg: {format: 'rgb8unorm'},
-  png: {format: 'rgba8unorm'},
-  apng: {format: 'rgba8unorm'},
-  gif: {format: 'rgba8unorm'},
-  bmp: {format: 'rgb8unorm'},
-  webp: {format: 'rgba8unorm'},
-  ico: {format: 'rgba8unorm'},
-  cur: {format: 'rgba8unorm'},
-  svg: {format: 'rgba8unorm'},
-};
-const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
-
-/**
- * Loader which handles any image types supported directly by the browser.
- */
-class ImageTextureLoader {
-  /**
-   * Creates a ImageTextureLoader instance.
-   * Should only be called by the WebTextureTool constructor.
-   */
-  constructor() {
+class ExtensionHandler {
+  constructor(extensions, callback) {
+    this.extensions = extensions;
+    this.callback = callback;
+    this.loader = null;
   }
 
-  /**
-   * Which file extensions this loader supports.
-   *
-   * @returns {Array<string>} - An array of the file extensions this loader supports.
-   */
-  supportedExtensions() {
-    return Object.keys(IMAGE_TEXTURE_EXTENSIONS);
-  }
-
-  /**
-   * Load a supported file as a texture from the given URL.
-   *
-   * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
-   * @param {string} url - An absolute URL that the texture file should be loaded from.
-   * @param {object} options - Options for how the loaded texture should be handled.
-   * @returns {Promise<WebTextureResult>} - The WebTextureResult obtained from passing the parsed file data to the
-   * client.
-   */
-  async loadTextureFromUrl(client, url, options) {
-    const format = IMAGE_TEXTURE_EXTENSIONS[options.extension].format;
-
-    if (IMAGE_BITMAP_SUPPORTED) {
-      const response = await fetch(url);
-      const imageBitmap = await createImageBitmap(await response.blob());
-      return client.textureFromImageBitmap(imageBitmap, format, options.mipmaps);
-    } else {
-      return new Promise((resolve, reject) => {
-        const imageElement = new Image();
-        imageElement.addEventListener('load', () => {
-          resolve(client.textureFromImageElement(imageElement, format, options.mipmaps));
-        });
-        imageElement.addEventListener('error', function(err) {
-          reject(err);
-        });
-        imageElement.src = url;
-      });
-    };
+  getLoader() {
+    if (!this.loader) {
+      this.loader = this.callback();
+    }
+    return this.loader;
   }
 }
+
+const EXTENSION_HANDLERS = [
+  new ExtensionHandler(ImageLoader.supportedExtensions(), () => new ImageLoader()),
+  new ExtensionHandler(['basis'], () => new WorkerLoader('basis/basis-worker.js')),
+  new ExtensionHandler(['dds'], () => new WorkerLoader('dds/dds-worker.js')),
+];
 
 const CLIENT = Symbol('wtt/WebTextureClient');
 const LOADERS = Symbol('wtt/WebTextureLoaders');
 
 const TMP_ANCHOR = document.createElement('a');
-
-const DEFAULT_TOOL_OPTIONS = {
-  loaders: null,
-};
 
 const DEFAULT_URL_OPTIONS = {
   extension: null,
@@ -177,31 +132,21 @@ export class WebTextureTool {
    * Create an instance of WebGLTextureTool or WebGPUTextureTool as needed instead.
    *
    * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
-   * @param {object} toolOptions - Options to initialize this WebTextureTool instance with.
    */
-  constructor(client, toolOptions) {
-    const options = Object.assign({}, DEFAULT_TOOL_OPTIONS, toolOptions);
+  constructor(client) {
     this[CLIENT] = client;
     this[LOADERS] = {};
 
-    // The ImageTextureLoader is always available, handles any image formats that are supported by the web's <img> tag.
-    const imageLoader = new ImageTextureLoader();
-    for (const extension of imageLoader.supportedExtensions()) {
-      this[LOADERS][extension] = imageLoader;
-    }
-
-    // Loops through any additional loaders that were provided and register their extension handlers.
-    if (options.loaders) {
-      for (const loader of options.loaders) {
-        for (const extension of loader.supportedExtensions()) {
-          this[LOADERS][extension] = loader;
-        }
+    // Map every available extension to it's associated handler
+    for (const extensionHandler of EXTENSION_HANDLERS) {
+      for (const extension of extensionHandler.extensions) {
+        this[LOADERS][extension] = extensionHandler;
       }
     }
 
     // Register one last "fallback" extension. Anything that we receive that has an unrecognized extension will try to
     // load with the ImageTextureLoader.
-    this[LOADERS]['*'] = imageLoader;
+    this[LOADERS]['*'] = EXTENSION_HANDLERS[0];
   }
 
   /** Loads a texture from the given URL
@@ -223,9 +168,16 @@ export class WebTextureTool {
       options.extension = extIndex > -1 ? TMP_ANCHOR.pathname.substring(extIndex+1).toLowerCase() : '*';
     }
 
-    const loader = this[LOADERS][options.extension];
+    const extensionHandler = this[LOADERS][options.extension];
+    if (!extensionHandler) {
+      extensionHandler = this[LOADERS]['*'];
+    }
+
+    // Get the appropriate loader for the extension. Will instantiate the loader instance the first time it's
+    // used.
+    const loader = extensionHandler.getLoader();
     if (!loader) {
-      throw new Error(`No loader found for extension "${options.extension}"`);
+      throw new Error(`Failed to get loader for extension "${options.extension}"`);
     }
 
     return loader.loadTextureFromUrl(this[CLIENT], TMP_ANCHOR.href, options);
