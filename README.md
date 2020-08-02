@@ -49,28 +49,29 @@ The method returns a promise which resolves to a `WebTextureResult` object, whic
 Texture dimensions, type, and format should be treated as immutable, as they will be allocated that way with any APIs
 that allow or enforce it.
 
-# Additional Loaders
+# Overriding extensions
 
-By default the library only loads image formats supported natively by most browsers:
-
-  - JPEG
-  - PNG
-  - GIF
-  - BMP
-  - WEBP
-
-But support for other formats can easily be added as needed by specifying additional loaders to the `create()` method,
-like so:
+When loading textures from a URL `WebTextureTool` will try to determine the file type automatically based on
+any extension it finds in the path. For example, with the code:
 
 ```js
-import { WebTextureTool } from "web-texture-tool/web-texture-tool.js"
-import { BasisLoader } from "web-texture-tool/basis-loader.js"
-
-// Get a WebGL context
-const canvas = document.createElement('canvas');
-const gl = canvas.getContext('webgl');
-
-const wtt = WebTextureTool.create(gl, {
-  loaders: [ new BasisLoader() ]
-});
+const result = await wtt.textureFromUrl('textures/FLOOR_1.PNG?debug=1');
 ```
+
+The automatically determined extension will be `png`, and so the file will attempt to load as a PNG image file. (Note
+that query string are ignored.)
+
+In some cases an automatically parsed extension may not be able to be determined or may be wrong. For example:
+
+```js
+const result = await wtt.textureFromUrl('assets.php?id=123');
+```
+
+In this case the URL may return an image but by default the system will assume that the extension is `php`, which has no
+loader associated with it since it's not an image format. If, however, you know that this page returns JPEG images, you can explicitly indicate it by setting the `extension` option like so:
+
+```js
+const result = await wtt.textureFromUrl('assets.php?id=123', { extension: 'jpg' });
+```
+
+Now the returned data will attempt to parse as a JPEG.

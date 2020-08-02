@@ -244,6 +244,7 @@ onmessage = (msg) => {
   const buffer = msg.data.buffer; // An array buffer with the basis image data
   const id = msg.data.id; // A unique ID for the texture
   const mipmaps = msg.data.mipmaps; // Wether or not mipmaps should be unpacked
+  const extension = msg.data.extension; // The file extension to be used (may differ from what's in the URL)
 
   // The formats this device supports
   const supportedFormats = {};

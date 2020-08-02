@@ -139,6 +139,7 @@ export class WorkerLoader {
       url: url,
       supportedFormats: client.supportedFormats(),
       mipmaps: options.mipmaps,
+      extension: options.extension
     });
 
     return new Promise((resolve, reject) => {
