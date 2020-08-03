@@ -49,7 +49,7 @@ function StructReader(layout) {
       } if (typeof type == 'function') {
         target[name] = {};
         offset += type(target[name], buffer, offset);
-      } else {
+      } else if (type.array != undefined) {
         const length = (typeof type.length == 'string') ? target[type.length] : type.length;
         if (typeof type.array == 'function') {
           target[name] = [];
@@ -105,6 +105,11 @@ function StructReader(layout) {
               break;
           }
         }
+      } else if (type.align) {
+        let alignOffset = (offset % type.align);
+        if (alignOffset) {
+          offset += type.align - alignOffset;
+        }
       }
     });
     return offset;
@@ -119,54 +124,279 @@ const TRANSCODER_INITIALIZED = MSC_TRANSCODER().then(module => {
   module.initTranscoders();
 });
 
-// Copied from enum class transcoder_texture_format in basisu_transcoder.h with minor javascript-ification
-/* eslint-disable */
-const BASIS_FORMAT = {
+const WTT_FORMAT_MAP = {
   // Compressed formats
+  BC1_RGB: {format: 'bc1-rgb-unorm'},
+  BC3_RGBA: {format: 'bc3-rgba-unorm'},
+  BC7_RGBA: {format: 'bc7-rgba-unorm'},
+  ETC1_RGB: {format: 'etc1-rgb-unorm'},
+  ETC2_RGBA: {format: 'etc2-rgba8unorm'},
+  ASTC_4x4_RGBA: {format: 'astc-4x4-rgba-unorm'},
+  PVRTC1_4_RGB: {format: 'pvrtc1-4bpp-rgb-unorm'},
+  PVRTC1_4_RGBA: {format: 'pvrtc1-4bpp-rgba-unorm'},
 
-  // ETC1-2
-  cTFETC1_RGB: 0,							// Opaque only, returns RGB or alpha data if cDecodeFlagsTranscodeAlphaDataToOpaqueFormats flag is specified
-  cTFETC2_RGBA: 1,						// Opaque+alpha, ETC2_EAC_A8 block followed by a ETC1 block, alpha channel will be opaque for opaque .basis files
-
-  // BC1-5, BC7 (desktop, some mobile devices)
-  cTFBC1_RGB: 2,							// Opaque only, no punchthrough alpha support yet, transcodes alpha slice if cDecodeFlagsTranscodeAlphaDataToOpaqueFormats flag is specified
-  cTFBC3_RGBA: 3, 						// Opaque+alpha, BC4 followed by a BC1 block, alpha channel will be opaque for opaque .basis files
-  cTFBC4_R: 4,								// Red only, alpha slice is transcoded to output if cDecodeFlagsTranscodeAlphaDataToOpaqueFormats flag is specified
-  cTFBC5_RG: 5,								// XY: Two BC4 blocks, X=R and Y=Alpha, .basis file should have alpha data (if not Y will be all 255's)
-  cTFBC7_RGBA: 6,							// RGB or RGBA, mode 5 for ETC1S, modes (1,2,3,5,6,7) for UASTC
-
-  // PVRTC1 4bpp (mobile, PowerVR devices)
-  cTFPVRTC1_4_RGB: 8,					// Opaque only, RGB or alpha if cDecodeFlagsTranscodeAlphaDataToOpaqueFormats flag is specified, nearly lowest quality of any texture format.
-  cTFPVRTC1_4_RGBA: 9,				// Opaque+alpha, most useful for simple opacity maps. If .basis file doesn't have alpha cTFPVRTC1_4_RGB will be used instead. Lowest quality of any supported texture format.
-
-  // ASTC (mobile, Intel devices, hopefully all desktop GPU's one day)
-  cTFASTC_4x4_RGBA: 10,				// Opaque+alpha, ASTC 4x4, alpha channel will be opaque for opaque .basis files. Transcoder uses RGB/RGBA/L/LA modes, void extent, and up to two ([0,47] and [0,255]) endpoint precisions.
-
-  // Uncompressed (raw pixel) formats
-  cTFRGBA32: 13,							// 32bpp RGBA image stored in raster (not block) order in memory, R is first byte, A is last byte.
-  cTFRGB565: 14,							// 166pp RGB image stored in raster (not block) order in memory, R at bit position 11
-  cTFBGR565: 15,							// 16bpp RGB image stored in raster (not block) order in memory, R at bit position 0
-  cTFRGBA4444: 16,						// 16bpp RGBA image stored in raster (not block) order in memory, R at bit position 12, A at bit position 0
-
-  cTFTotalTextureFormats: 22,
+  // Uncompressed formats
+  RGBA32: {format: 'rgba8unorm', uncompressed: true},
+  RGB565: {format: 'rgb565unorm', uncompressed: true},
+  RGBA4444: {format: 'rgba4unorm', uncompressed: true},
 };
-/* eslint-enable */
 
-const WTT_FORMAT_MAP = {};
-// Compressed formats
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFBC1_RGB] = {format: 'bc1-rgb-unorm'};
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFBC3_RGBA] = {format: 'bc3-rgba-unorm'};
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFBC7_RGBA] = {format: 'bc7-rgba-unorm'};
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFETC1_RGB] = {format: 'etc1-rgb-unorm'};
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFETC2_RGBA] = {format: 'etc2-rgba8unorm'};
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFASTC_4x4_RGBA] = {format: 'astc-4x4-rgba-unorm'};
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFPVRTC1_4_RGB] = {format: 'pvrtc1-4bpp-rgb-unorm'};
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFPVRTC1_4_RGBA] = {format: 'pvrtc1-4bpp-rgba-unorm'};
+const KTX_IDENTIFIER = [
+  /*«KTX 20»\r\n\x1A\n*/
+  0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32, 0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A,
+];
 
-// Uncompressed formats
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFRGBA32] = {format: 'rgba8unorm', uncompressed: true};
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFRGB565] = {format: 'rgb565unorm', uncompressed: true};
-WTT_FORMAT_MAP[BASIS_FORMAT.cTFRGBA4444] = {format: 'rgba4unorm', uncompressed: true};
+const KtxHeaderReader = StructReader({
+  identifier: {array: 'uint8', length: 12},
+  vkFormat: 'uint32',
+  typeSize: 'uint32',
+  pixelWidth: 'uint32',
+  pixelHeight: 'uint32',
+  pixelDepth: 'uint32',
+  layerCount: 'uint32',
+  faceCount: 'uint32',
+  levelCount: 'uint32',
+  supercompressionScheme: 'uint32',
+
+  // Index
+  dfdByteOffset: 'uint32',
+  dfdByteLength: 'uint32',
+  kvdByteOffset: 'uint32',
+  kvdByteLength: 'uint32',
+  sgdByteOffset: 'uint64',
+  sgdByteLength: 'uint64',
+
+  levels: {length: 'levelCount', array: StructReader({
+    byteOffset: 'uint64',
+    byteLength: 'uint64',
+    uncompressedByteLength: 'uint64'
+  })},
+});
+
+const BasisLZGlobalDataReader = StructReader({
+  endpointCount: 'uint16',
+  selectorCount: 'uint16',
+  endpointsByteLength: 'uint32',
+  selectorsByteLength: 'uint32',
+  tablesByteLength: 'uint32',
+  extendedByteLength: 'uint32',
+});
+
+const ImageDescReader = StructReader({
+  imageFlags: 'uint32',
+  rgbSliceByteOffset: 'uint32',
+  rgbSliceByteLength: 'uint32',
+  alphaSliceByteOffset: 'uint32',
+  alphaSliceByteLength: 'uint32',
+});
+
+const KeyValueReader = StructReader({
+  keyAndValueByteLength: 'uint32',
+  keyAndValue: {array: 'uint8', length: 'keyAndValueByteLength'},
+  valuePadding: {align: 4},
+});
+
+class KtxHeader {
+  constructor(buffer) {
+    KtxHeaderReader(this, buffer);
+
+    this.valid = true;
+    for (let i = 0; i < KTX_IDENTIFIER.length; ++i) {
+      if (this.identifier[i] !== KTX_IDENTIFIER[i]) {
+        this.valid = false;
+        break;
+      }
+    }
+
+    // Read key/value data
+    this.keyValues = {};
+    const utf8decoder = new TextDecoder("utf-8");
+    let offset = this.kvdByteOffset;
+    const kvdEndOffset = this.kvdByteOffset + this.kvdByteLength;
+    while(offset != kvdEndOffset) {
+      const keyValueData = {};
+      offset += KeyValueReader(keyValueData, buffer, offset);
+      const nullIndex = keyValueData.keyAndValue.findIndex((element) => element === 0);
+      const key = utf8decoder.decode(keyValueData.keyAndValue.slice(0, nullIndex));
+      const value = keyValueData.keyAndValue.slice(nullIndex+1, keyValueData.keyAndValueByteLength);
+      this.keyValues[key] = value;
+    }
+
+    this.layerPixelDepth = Math.max(this.pixelDepth, 1);
+    for(let i = 1; i < this.levelCount; i++) {
+      this.layerPixelDepth += Math.max(this.pixelDepth >> i, 1);
+    }
+
+    // Total image count for the file.
+    this.imageCount = Math.max(this.layerCount, 1) * this.faceCount * this.layerPixelDepth;
+    this.basisTexFormat = this.supercompressionScheme == 1 ? "ETC1S" : null;
+  }
+}
+
+class BasisLZGlobalData {
+  constructor(buffer, header) {
+    let offset = header.sgdByteOffset;
+    offset += BasisLZGlobalDataReader(this, buffer, offset);
+
+    this.imageDescs = [];
+    for (let i = 0; i < header.imageCount; ++i) {
+      const imageDesc = {};
+      offset += ImageDescReader(imageDesc, buffer, offset);
+      this.imageDescs.push(imageDesc);
+    }
+
+    this.endpointsData = new Uint8Array(buffer, offset, this.endpointsByteLength);
+    offset += this.endpointsByteLength;
+
+    this.selectorsData = new Uint8Array(buffer, offset, this.selectorsByteLength);
+    offset += this.selectorsByteLength;
+
+    this.tablesData = new Uint8Array(buffer, offset, this.tablesByteLength);
+    offset += this.tablesByteLength;
+
+    this.extendedData = new Uint8Array(buffer, offset, this.extendedByteLength);
+  }
+}
+
+// See http://richg42.blogspot.com/2018/05/basis-universal-gpu-texture-format.html for details.
+// ETC1 Should be the highest quality, so use when available.
+// If we don't support any appropriate compressed formats transcode to raw RGB(A) pixels. This is something of a last
+// resort, because the GPU upload will be significantly slower and take a lot more memory, but at least it prevents you
+// from needing to store a fallback JPG/PNG and the download size will still likely be smaller.
+const alphaFormatPreference = [
+  'ETC2_RGBA', 'BC7_RGBA', 'BC3_RGBA', 'ASTC_4x4_RGBA', 'PVRTC1_4_RGBA', 'RGBA32'];
+const opaqueFormatPreference = [
+  'ETC1_RGB', 'BC7_RGBA', 'BC1_RGB', 'ETC2_RGBA', 'ASTC_4x4_RGBA', 'PVRTC1_4_RGB', 'RGB565', 'RGBA32']
+
+function parseFile(id, buffer, supportedFormats, mipmaps) {
+  const header = new KtxHeader(buffer);
+
+  if (!header.valid) {
+    fail(id, 'Invalid KTX header');
+  }
+
+  const hasAlpha = true;
+
+  if (header.basisTexFormat == "ETC1S") {
+    const basisLZGlobalData = new BasisLZGlobalData(buffer, header);
+
+    // Find a compatible format
+    let targetFormat = undefined;
+    const formats = hasAlpha ? alphaFormatPreference : opaqueFormatPreference;
+    for (const format of formats) {
+      if (supportedFormats[format]) {
+        const basisFormat = BasisTranscoder.TranscodeTarget[format];
+        if (BasisTranscoder.isFormatSupported(basisFormat, BasisTranscoder.TextureFormat.ETC1S)) {
+          targetFormat = format;
+          break;
+        }
+      }
+    }
+
+    if (targetFormat === undefined) {
+      fail(id, 'No supported transcode formats');
+      return;
+    }
+
+    if (!transcodeEtc1s(id, buffer, targetFormat, header, basisLZGlobalData, hasAlpha)) {
+      return;
+    }
+  } else {
+    fail(id, 'Not a basis ETC1S file.');
+  }
+}
+
+function transcodeEtc1s(id, buffer, targetFormat, header, globalData, hasAlpha) {
+  const transcoder = new BasisTranscoder.BasisLzEtc1sImageTranscoder();
+  transcoder.decodePalettes(globalData.endpointCount, globalData.endpointsData,
+                            globalData.selectorCount, globalData.selectorsData);
+  transcoder.decodeTables(globalData.tablesData);
+
+  const mipLevels = [];
+  const mipLevelData = [];
+  let totalTranscodeSize = 0;
+
+  const isVideo = false;
+  let curImageIndex = 0;
+  let levelCount = Math.max(header.levelCount, 1);
+  let levelWidth = header.pixelWidth;
+  let levelHeight = Math.max(header.pixelHeight, 1);
+  let levelDepth = Math.max(header.pixelDepth, 1);
+  for(let levelIndex = 0; levelIndex < header.levelCount; ++levelIndex) {
+    const imageInfo = new BasisTranscoder.ImageInfo("ETC1S", levelWidth, levelHeight, levelIndex);
+    const levelHeader = header.levels[levelIndex];
+
+    const levelImageCount = Math.max(header.layerCount, 1) * header.faceCount * levelDepth;
+
+    for (let levelImage = 0; levelImage < levelImageCount; ++levelImage) {
+      // In KTX2 container locate the imageDesc for this image.
+      const imageDesc = globalData.imageDescs[curImageIndex++];
+      imageInfo.flags = imageDesc.imageFlags;
+      imageInfo.rgbByteOffset = 0;
+      imageInfo.rgbByteLength = imageDesc.rgbSliceByteLength;
+      imageInfo.alphaByteOffset = imageDesc.alphaSliceByteOffset > 0 ? imageDesc.rgbSliceByteLength : 0;
+      imageInfo.alphaByteLength = imageDesc.alphaSliceByteLength;
+      // Determine the location in the ArrayBuffer of the start
+      // of the deflated data for level.
+
+      // Make a .subarray of the rgb slice data.
+      const levelData = new Uint8Array(buffer,
+          levelHeader.byteOffset + imageDesc.rgbSliceByteOffset,
+          imageDesc.rgbSliceByteLength + imageDesc.alphaSliceByteLength);
+
+      const basisFormat = BasisTranscoder.TranscodeTarget[targetFormat];
+      const result = transcoder.transcodeImage(basisFormat, levelData, imageInfo, hasAlpha, isVideo);
+
+      if ( result.transcodedImage === undefined ) {
+        fail(id, `Image failed to transcode. (Level ${levelIndex}, Image ${levelImage})`);
+        return false;
+      }
+
+      const imgData = result.transcodedImage.get_typed_memory_view();
+
+      mipLevels.push({
+        level: levelIndex,
+        offset: totalTranscodeSize,
+        size: imgData.byteLength,
+        width: levelWidth,
+        height: levelHeight,
+      });
+
+      totalTranscodeSize += imgData.byteLength;
+
+      mipLevelData.push({
+        transcodedImage: result.transcodedImage,
+        imgData
+      });
+    }
+
+    levelWidth = Math.max(1, levelWidth >> 1);
+    levelHeight = Math.max(1, levelHeight >> 1);
+    levelDepth = Math.max(1, levelDepth >> 1);
+  }
+
+  // Copy all the transcoded data into one big array for transfer out of the worker.
+  const transcodeData = new Uint8Array(totalTranscodeSize);
+  for(let i = 0; i < mipLevels.length; ++i) {
+    const mipLevel = mipLevels[i];
+    const levelData = new Uint8Array(transcodeData.buffer, mipLevel.offset, mipLevel.size);
+    transcodeData.set(mipLevelData[i].imgData, mipLevel.offset);
+
+    // Do not call delete() until data has been uploaded
+    // or otherwise copied.
+    mipLevelData[i].transcodedImage.delete();
+  }
+
+  // Post the transcoded results back to the main thread.
+  postMessage({
+    id: id,
+    buffer: transcodeData.buffer,
+    format: WTT_FORMAT_MAP[targetFormat].format,
+    mipLevels: mipLevels,
+  }, [transcodeData.buffer]);
+
+  return true;
+}
 
 /**
  * Notifies the main thread when transcoding a texture has failed to load for any reason.
@@ -325,166 +555,6 @@ function transcode(id, arrayBuffer, supportedFormats, mipmaps) {
   }, [transcodeData.buffer]);
 }
 
-const KTX_IDENTIFIER = [
-  /*«KTX 20»\r\n\x1A\n*/
-  0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32, 0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A,
-];
-
-const KtxHeaderReader = StructReader({
-  identifier: {array: 'uint8', length: 12},
-  vkFormat: 'uint32',
-  typeSize: 'uint32',
-  pixelWidth: 'uint32',
-  pixelHeight: 'uint32',
-  pixelDepth: 'uint32',
-  layerCount: 'uint32',
-  faceCount: 'uint32',
-  levelCount: 'uint32',
-  supercompressionScheme: 'uint32',
-
-  // Index
-  dfdByteOffset: 'uint32',
-  dfdByteLength: 'uint32',
-  kvdByteOffset: 'uint32',
-  kvdByteLength: 'uint32',
-  sgdByteOffset: 'uint64',
-  sgdByteLength: 'uint64',
-
-  levels: {length: 'levelCount', array: StructReader({
-    byteOffset: 'uint64',
-    byteLength: 'uint64',
-    uncompressedByteLength: 'uint64'
-  })},
-});
-
-class KtxHeader {
-  constructor(buffer) {
-    KtxHeaderReader(this, buffer);
-
-    this.valid = true;
-    for (let i = 0; i < KTX_IDENTIFIER.length; ++i) {
-      if (this.identifier[i] !== KTX_IDENTIFIER[i]) {
-        this.valid = false;
-        break;
-      }
-    }
-
-   /* const header32 = new Uint32Array(buffer, 12, 13);
-    const header64 = new BigUint64Array(buffer, 64, 2);
-
-    this.vkFormat = header32[0];
-    this.typeSize = header32[1];
-    this.pixelWidth = header32[2];
-    this.pixelHeight = header32[3];
-    this.pixelDepth = header32[4];
-    this.layerCount = header32[5];
-    this.faceCount = header32[6];
-    this.levelCount = header32[7];
-    this.supercompressionScheme = header32[8];
-
-    // Index
-    this.dfdByteOffset = header32[9];
-    this.dfdByteLength = header32[10];
-    this.kvdByteOffset = header32[11];
-    this.kvdByteLength = header32[12];
-    this.sgdByteOffset = header64[0];
-    this.sgdByteLength = header64[1];
-
-    // Level Index
-    const levelData = new BigUint64Array(buffer, 80, this.levelCount * 3);
-    this.levels = [];
-    for (let i = 0; i < this.levelCount; ++i) {
-      this.levels.push({
-        byteOffset: levelData[i * 3],
-        byteLength: levelData[i * 3 + 1],
-        uncompressedByteLength: levelData[i * 3 + 2],
-      });
-    }*/
-
-    this.layerPixelDepth = Math.max(this.pixelDepth, 1);
-    for(let i = 1; i < this.levelCount; i++) {
-      this.layerPixelDepth += Math.max(this.pixelDepth >> i, 1);
-    }
-
-    this.imageCount = Math.max(this.layerCount, 1) * this.faceCount * this.layerPixelDepth;
-
-    this.basisTexFormat = this.supercompressionScheme == 1 ? "ETC1S" : null;    
-  }
-}
-
-const BasisLZGlobalDataReader = StructReader({
-  endpointCount: 'uint16',
-  selectorCount: 'uint16',
-  endpointsByteLength: 'uint32',
-  selectorsByteLength: 'uint32',
-  tablesByteLength: 'uint32',
-  extendedByteLength: 'uint32',
-});
-
-const ImageDescReader = StructReader({
-  imageFlags: 'uint32',
-  rgbSliceByteOffset: 'uint32',
-  rgbSliceByteLength: 'uint32',
-  alphaSliceByteOffset: 'uint32',
-  alphaSliceByteLength: 'uint32',
-});
-
-class BasisLZGlobalData {
-  constructor(buffer, header) {
-    let offset = header.sgdByteOffset;
-    offset += BasisLZGlobalDataReader(this, buffer, offset);
-
-    this.imageDescs = [];
-    for (let i = 0; i < header.imageCount; ++i) {
-      const imageDesc = {};
-      offset += ImageDescReader(imageDesc, buffer, offset);
-      this.imageDescs.push(imageDesc);
-    }
-
-    this.endpointsData = new Uint8Array(buffer, offset, this.endpointsByteLength);
-    offset += this.endpointsByteLength;
-
-    this.selectorsData = new Uint8Array(buffer, offset, this.selectorsByteLength);
-    offset += this.selectorsByteLength;
-
-    this.tablesData = new Uint8Array(buffer, offset, this.tablesByteLength);
-    offset += this.tablesByteLength;
-
-    this.extendedData = new Uint8Array(buffer, offset, this.extendedByteLength);
-  }
-}
-
-function parseFile(id, buffer, supportedFormats, mipmaps) {
-  const header = new KtxHeader(buffer);
-
-  if (!header.valid) {
-    fail(id, 'Invalid KTX header');
-  }
-
-  if (header.basisTexFormat == "ETC1S") {
-    const basisLZGlobalData = new BasisLZGlobalData(buffer, header);
-    transcodeEtc1s(buffer, "rgba", header, basisLZGlobalData);
-  }
-
-  fail(id, 'Valid header');
-}
-
-function transcodeEtc1s(buffer, targetFormat, header, globalData) {
-  const transcoder = new BasisTranscoder.BasisLzEtc1sImageTranscoder();
-  transcoder.decodePalettes(globalData.endpointCount, globalData.endpointsData,
-                            globalData.selectorCount, globalData.selectorsData);
-  transcoder.decodeTables(globalData.tablesData);
-
-  let curImageIndex = 0;
-  for(let level = 0; level < header.levelCount; ++level) {
-    const levelWidth = 1;
-    const levelHeight = 1;
-    const imageInfo = new BasisTranscoder.ImageInfo("ETC1S", levelWidth, levelHeight, level);
-    
-  }
-}
-
-
 onmessage = (msg) => {
   // Each call to the worker must contain:
   const url = msg.data.url; // The URL of the basis image OR
@@ -496,9 +566,9 @@ onmessage = (msg) => {
   // The formats this device supports
   const supportedFormats = {};
   // eslint-disable-next-line guard-for-in
-  for (const basisFormat in WTT_FORMAT_MAP) {
-    const wttFormat = WTT_FORMAT_MAP[basisFormat];
-    supportedFormats[basisFormat] = msg.data.supportedFormats.indexOf(wttFormat.format) > -1;
+  for (const targetFormat in WTT_FORMAT_MAP) {
+    const wttFormat = WTT_FORMAT_MAP[targetFormat];
+    supportedFormats[targetFormat] = msg.data.supportedFormats.indexOf(wttFormat.format) > -1;
   }
 
   if (url) {
