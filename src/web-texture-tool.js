@@ -109,6 +109,7 @@ class ExtensionHandler {
 const EXTENSION_HANDLERS = [
   new ExtensionHandler(ImageLoader.supportedExtensions(), () => new ImageLoader()),
   new ExtensionHandler(['basis'], () => new WorkerLoader('basis/basis-worker.js')),
+  new ExtensionHandler(['ktx2'], () => new WorkerLoader('ktx/ktx-worker.js')),
   new ExtensionHandler(['dds'], () => new WorkerLoader('dds/dds-worker.js')),
 ];
 
