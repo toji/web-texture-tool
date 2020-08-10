@@ -106,6 +106,7 @@ class WebGLTextureClient {
   constructor(gl) {
     this.gl = gl;
     this.isWebGL2 = this.gl instanceof WebGL2RenderingContext;
+    this.allowCompressedFormats = true;
 
     // Compressed Texture Extensions
     this.extensions = {
@@ -116,6 +117,10 @@ class WebGLTextureClient {
       pvrtc: gl.getExtension('WEBGL_compressed_texture_pvrtc'),
       s3tc: gl.getExtension('WEBGL_compressed_texture_s3tc'),
     };
+
+    this.uncompressedFormatList = [
+      'rgb8unorm', 'rgba8unorm', 'rgb565unorm', 'rgba4unorm',
+    ];
 
     this.supportedFormatList = [
       'rgb8unorm', 'rgba8unorm', 'rgb565unorm', 'rgba4unorm',
@@ -147,7 +152,11 @@ class WebGLTextureClient {
    * @returns {Array<module:WebTextureTool.WebTextureFormat>} - List of supported WebTextureFormats.
    */
   supportedFormats() {
-    return this.supportedFormatList;
+    if (this.allowCompressedFormats) {
+      return this.supportedFormatList;
+    } else {
+      return this.uncompressedFormatList;
+    }
   }
 
   /**
@@ -161,6 +170,7 @@ class WebGLTextureClient {
    */
   textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
     const gl = this.gl;
+    if (!gl) { return null; }
 
     // For WebGL 1.0 only generate mipmaps if the texture is a power of two size.
     if (!this.isWebGL2 && generateMipmaps) {
@@ -216,6 +226,8 @@ class WebGLTextureClient {
    */
   textureFromLevelData(buffer, mipLevels, format, generateMipmaps) {
     const gl = this.gl;
+    if (!gl) { return null; }
+
     const glFormat = resolveFormat(format);
 
     const topLevel = mipLevels[0];
@@ -267,7 +279,7 @@ class WebGLTextureClient {
               levelData[mipLevel.level]);
         } else {
           gl.compressedTexImage2D(
-              gl.TEXTURE_2D, i, glFormat.sizedFormat,
+              gl.TEXTURE_2D, mipLevel.level, glFormat.sizedFormat,
               mipLevel.width, mipLevel.height, 0,
               levelData[mipLevel.level]);
         }
@@ -293,6 +305,10 @@ class WebGLTextureClient {
     }
 
     return new WebTextureResult(texture, topLevel.width, topLevel.height, 1, mipLevelCount, format);
+  }
+
+  destroy() {
+    this.gl = null;
   }
 }
 

@@ -40,6 +40,10 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
         width: 100%;
         height: 100%;
       }
+
+      .dg {
+        z-index: 1 !important;
+      }
     </style>
   </head>
 
@@ -47,13 +51,26 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
     <!--canvas id='output-canvas'></canvas-->
 
     <script type='module'>
-      //import {WebGLTextureTool} from '../src/webgl-texture-tool.js';
-
       import {WebGLRenderer} from './webgl-renderer.js';
       import {WebGPURenderer} from './webgpu-renderer.js';
 
       import {vec3, mat4} from './gl-matrix/src/gl-matrix.js';
       import * as Util from './gl-utils.js';
+      import * as dat from './dat.gui.module.js';
+
+      const settings = {
+        renderer: 'WebGL2',
+        compressedFormats: true,
+      };
+
+      const gui = new dat.GUI();
+
+      gui.add(settings, "renderer", {WebGL2: 'WebGL2', WebGPU: 'WebGPU'}).onChange(updateRenderer);
+      gui.add(settings, "compressedFormats").onChange(() => {
+        if (renderer) {
+          renderer.textureTool.allowCompressedFormats = settings.compressedFormats;
+        }
+      });
 
       const textureNames = [
         //'./badPath.png',
@@ -105,6 +122,8 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
       const tileRows = 6;
       const tiles = [];
 
+      let renderer = null;
+
       class TextureTile {
         constructor(column, row) {
           this.x = ((column - (tileColumns / 2)) * 2) + 1;
@@ -151,11 +170,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
         }
       }
 
-      //const renderer = new WebGLRenderer();
-      const renderer = new WebGPURenderer();
-
       let nextTexturePath = 0;
-
       function loadNextTexture(tile) {
         // Every once in a while return a solid color texture, just for fun.
         /*if (!Math.floor(Math.random() * 15)) {
@@ -178,35 +193,63 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
         window.requestAnimationFrame(onFrame);
 
+        if (!renderer) {
+          return;
+        }
+
         for (let tile of tiles) {
           tile.update(delta);
         }
 
         renderer.onFrame(projectionMat, tiles);
       }
+      window.requestAnimationFrame(onFrame);
 
-      renderer.initialize().then(() => {
-        const canvas = renderer.canvas;
-        document.body.appendChild(canvas);
-        Util.observePixelSize(canvas, (width, height) => {
-          canvas.width = width;
-          canvas.height = height;
-
-          const aspect = width/height;
-          mat4.ortho(projectionMat,
-            -tileColumns * aspect, tileColumns * aspect,
-            (tileRows - 1), -(tileRows - 1),
-            -1, 1);
-
-          renderer.onCanvasResize(width, height);
-        });
-
-        for (let tile of tiles) {
-          renderer.initializeTile(tile);
+      function updateRenderer() {
+        if (renderer) {
+          document.body.removeChild(renderer.canvas);
+          renderer.destroy();
         }
 
-        window.requestAnimationFrame(onFrame);
-      });
+        renderer = null;
+        let newRenderer = null;
+        switch (settings.renderer) {
+          case 'WebGL2':
+            newRenderer = new WebGLRenderer();
+            break;
+          case 'WebGPU':
+            newRenderer = new WebGPURenderer();
+            break;
+        }
+
+        newRenderer.initialize().then(() => {
+          for (let tile of tiles) {
+            newRenderer.initializeTile(tile);
+          }
+
+          renderer = newRenderer;
+          renderer.textureTool.allowCompressedFormats = settings.compressedFormats;
+
+          const canvas = newRenderer.canvas;
+          document.body.appendChild(canvas);
+          Util.observePixelSize(canvas, (width, height) => {
+            // Stop observing if the renderer has changed.
+            if (!renderer || canvas != renderer.canvas) { return false; }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const aspect = width/height;
+            mat4.ortho(projectionMat,
+              -tileColumns * aspect, tileColumns * aspect,
+              (tileRows - 1), -(tileRows - 1),
+              -1, 1);
+
+            newRenderer.onCanvasResize(width, height);
+          });
+        });
+      }
+      updateRenderer();
     </script>
   </body>
 </html>

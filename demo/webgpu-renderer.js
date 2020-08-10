@@ -252,4 +252,10 @@ export class WebGPURenderer {
     passEncoder.endPass();
     this.device.defaultQueue.submit([commandEncoder.finish()]);
   }
+
+  destroy() {
+    if (this.textureTool) {
+      this.textureTool.destroy();
+    }
+  }
 }

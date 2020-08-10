@@ -74,6 +74,11 @@ class WebGPUTextureClient {
    */
   constructor(device) {
     this.device = device;
+    this.allowCompressedFormats = true;
+
+    this.uncompressedFormatList = [
+      'rgba8unorm',
+    ];
 
     this.supportedFormatList = [
       'rgba8unorm',
@@ -141,7 +146,11 @@ class WebGPUTextureClient {
    * @returns {Array<module:WebTextureTool.WebTextureFormat>} - List of supported WebTextureFormats.
    */
   supportedFormats() {
-    return this.supportedFormatList;
+    if (this.allowCompressedFormats) {
+      return this.supportedFormatList;
+    } else {
+      return this.uncompressedFormatList;
+    }
   }
 
   /**
@@ -154,6 +163,7 @@ class WebGPUTextureClient {
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
   async textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
+    if (!this.device) { return null; }
     const mipLevelCount = generateMipmaps ? calculateMipLevels(imageBitmap.width, imageBitmap.height) : 1;
     const textureDescriptor = {
       size: {width: imageBitmap.width, height: imageBitmap.height, depth: 1},
@@ -184,6 +194,7 @@ class WebGPUTextureClient {
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
   async textureFromImageElement(image, format, generateMipmaps) {
+    if (!this.device) { return null; }
     if (!IMAGE_BITMAP_SUPPORTED) {
       throw new Error('Must support ImageBitmap to use WebGPU. (How did you even get to this error?)');
     }
@@ -202,6 +213,8 @@ class WebGPUTextureClient {
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
   textureFromLevelData(buffer, mipLevels, format, generateMipmaps) {
+    if (!this.device) { return null; }
+
     const blockSize = FORMAT_BLOCK_SIZE[format];
     if (!blockSize) {
       throw new Error(`No block size information for format "${format}"`);
@@ -240,7 +253,7 @@ class WebGPUTextureClient {
       const bytesPerImageRow = Math.ceil(mipLevel.width / blockSize.width) * blockSize.byteLength;
       const blockRows = Math.ceil(mipLevel.height / blockSize.height);
 
-      // *SIGH* bytesPerRow has to be a multiple of 256?
+      // *SIGH* bytesPerRow has to be a multiple of 256.
       const bytesPerRow = Math.ceil(bytesPerImageRow / 256) * 256;
       const bufferSize = Math.max(mipLevel.size, bytesPerRow * blockRows);
 
@@ -330,6 +343,8 @@ class WebGPUTextureClient {
   async generateMipmap(texture, textureDescriptor) {
     await this.mipmapReady;
 
+    if (!this.device) { return null; }
+
     const textureSize = {
       width: textureDescriptor.size.width,
       height: textureDescriptor.size.height,
@@ -381,6 +396,10 @@ class WebGPUTextureClient {
     this.device.defaultQueue.submit([commandEncoder.finish()]);
 
     return texture;
+  }
+
+  destroy() {
+    this.device = null;
   }
 }
 

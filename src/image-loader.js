@@ -86,4 +86,8 @@ export class ImageLoader {
       });
     };
   }
+
+  destroy() {
+    // Nothing to clean up here.
+  }
 }

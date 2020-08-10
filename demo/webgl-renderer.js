@@ -50,14 +50,19 @@ const fragmentSrc = `
 `;
 
 export class WebGLRenderer {
-  constructor() {
+  constructor(useWebGL2 = true) {
     this.canvas = document.createElement('canvas');
-    this.gl = this.canvas.getContext('webgl2');
-    this.textureTool = new WebGLTextureTool(this.gl);
+    this.contextId = useWebGL2 ? 'webgl2' : 'webgl';
   }
 
   async initialize() {
-    const gl = this.gl;
+    const gl = this.canvas.getContext(this.contextId);
+    if (!gl) {
+      throw new Error(`Requested context type "${this.contextId}" is not supported.`);
+    }
+    this.gl = gl;
+
+    this.textureTool = new WebGLTextureTool(gl);
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
@@ -139,5 +144,11 @@ export class WebGLRenderer {
     }
 
     gl.bindVertexArray(null);
+  }
+
+  destroy() {
+    if (this.textureTool) {
+      this.textureTool.destroy();
+    }
   }
 }

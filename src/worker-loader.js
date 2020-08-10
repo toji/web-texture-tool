@@ -147,4 +147,15 @@ export class WorkerLoader {
       pendingTextures[pendingTextureId] = new PendingTextureRequest(client, options, resolve, reject);
     });
   }
+
+  destroy() {
+    if (this.worker) {
+      this.worker.terminate();
+
+      const destroyedError = new Error('Texture loader was destroyed.');
+      for (const pendingTexture of pendingTextures) {
+        pendingTextures.reject(destroyedError);
+      }
+    }
+  }
 }

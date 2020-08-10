@@ -157,6 +157,10 @@ export class WebTextureTool {
    * @returns {Promise<WebTextureResult>} - Promise which resolves to the completed WebTextureResult.
    */
   async loadTextureFromUrl(url, textureOptions) {
+    if (!this[CLIENT]) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
+
     const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);
 
     // Use this to resolve to a full URL.
@@ -193,7 +197,36 @@ export class WebTextureTool {
    * @returns {WebTextureResult} - Completed WebTextureResult
    */
   createTextureFromColor(r, g, b, a = 1.0) {
+    if (!this[CLIENT]) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
     const data = new Uint8Array([r * 255, g * 255, b * 255, a * 255]);
     return this[CLIENT].textureFromLevelData(data, [{level:0, width: 1, height: 1, offset: 0, size: 4}], 'rgba8unorm', false);
+  }
+
+  set allowCompressedFormats(value) {
+    this[CLIENT].allowCompressedFormats = !!value;
+  }
+
+  get allowCompressedFormats() {
+    return this[CLIENT].allowCompressedFormats;
+  }
+
+  /** Destroys the texture tool and stops any in-progress texture loads that have been started. */
+  destroy() {
+    if (this[CLIENT]) {
+      this[CLIENT].destroy();
+      this[CLIENT] = null;
+
+      // TODO: Should this happen?
+      // Would have to make sure every instance had it's own copies of the loaders.
+      // Shut down every loader that this class has initialized.
+      /*for (const extensionHandler of this[LOADERS]) { // Doesn't work
+        if (extensionHandler.loader) {
+          extensionHandler.loader.destroy();
+          extensionHandler.loader = null;
+        }
+      }*/
+    }
   }
 }
