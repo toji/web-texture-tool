@@ -232,12 +232,11 @@ class WebGPUTextureClient {
     };
     const texture = this.device.createTexture(textureDescriptor);
 
-    const commandEncoder = this.device.createCommandEncoder({});
+    // Pre-compute how much big the copy buffer will need to be to hold every available mip level of the texture.
+    let textureBufferSize = 0;
+    const levelCopyRanges = [];
 
     for (const mipLevel of mipLevels) {
-      if (mipLevel >= mipLevelCount) {
-        console.log("WTF happened here?");
-      }
       const bytesPerImageRow = Math.ceil(mipLevel.width / blockSize.width) * blockSize.byteLength;
       const blockRows = Math.ceil(mipLevel.height / blockSize.height);
 
@@ -245,40 +244,56 @@ class WebGPUTextureClient {
       const bytesPerRow = Math.ceil(bytesPerImageRow / 256) * 256;
       const bufferSize = Math.max(mipLevel.size, bytesPerRow * blockRows);
 
-      // TODO: Could be faster to pre-compute a size for a buffer big enough to hold every texture level.
-      const textureDataBuffer = this.device.createBuffer({
-        size: bufferSize,
-        usage: GPUBufferUsage.COPY_SRC,
-        mappedAtCreation: true
-      });
+      levelCopyRanges[mipLevel.level] = {
+        bytesPerImageRow,
+        blockRows,
+        bytesPerRow,
+        canFastCopy: bytesPerRow == bytesPerImageRow || blockRows == 1,
+        textureDataOffset: textureBufferSize,
+        textureDataSize: bufferSize,
+      };
 
-      const textureDataArray = textureDataBuffer.getMappedRange();
-      const textureBytes = new Uint8Array(textureDataArray);
+      textureBufferSize += bufferSize;
+    }
 
-      if (bytesPerRow == bytesPerImageRow || blockRows == 1) {
+    // Allocate a data buffer large enough to hold every mip level.
+    const textureDataBuffer = this.device.createBuffer({
+      size: textureBufferSize,
+      usage: GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true
+    });
+    const textureDataArray = textureDataBuffer.getMappedRange();
+
+    const commandEncoder = this.device.createCommandEncoder({});
+
+    for (const mipLevel of mipLevels) {
+      const levelRange = levelCopyRanges[mipLevel.level];
+
+      const textureBytes = new Uint8Array(textureDataArray, levelRange.textureDataOffset, levelRange.textureDataSize);
+
+      if (levelRange.canFastCopy) {
         // Fast path: Everything lines up and we can just blast the image data into the buffer in one go.
         textureBytes.set(new Uint8Array(buffer, mipLevel.offset, mipLevel.size));
 
-        // This should work just as well. Why doesn't it?
+        // TODO: This should work just as well, once https://dawn-review.googlesource.com/c/dawn/+/26320 is fixed.
+        // Could be that the mapped buffer approach is more efficient, though? Worth testing.
         /*this.device.defaultQueue.writeTexture(
           {texture: texture},
           new Uint8Array(buffer, mipLevel.offset, mipLevel.size),
-          {bytesPerRow},
+          {offset: levelRange.textureDataOffset, bytesPerRow: levelRange.bytesPerRow},
           textureDescriptor.size);*/
       } else {
-        // Slow path: Otherwise we need to loop through the texture and copy it's content's row. by. row.
-        for (let i = 0; i < blockRows; ++i) {
+        // Slow path: Otherwise we need to loop through the texture and copy it's content's row by row.
+        for (let i = 0; i < levelRange.blockRows; ++i) {
           textureBytes.set(
-            new Uint8Array(buffer, mipLevel.offset + (bytesPerImageRow*i), bytesPerImageRow),
-            bytesPerRow*i);
+            new Uint8Array(buffer, mipLevel.offset + (levelRange.bytesPerImageRow*i), levelRange.bytesPerImageRow),
+            levelRange.bytesPerRow*i);
         }
       }
 
-      textureDataBuffer.unmap();
-
       commandEncoder.copyBufferToTexture({
         buffer: textureDataBuffer,
-        bytesPerRow,
+        bytesPerRow: levelRange.bytesPerRow,
       }, {
         texture: texture,
         mipLevel: mipLevel.level
@@ -290,7 +305,11 @@ class WebGPUTextureClient {
       });
     }
 
+    textureDataBuffer.unmap();
+
     this.device.defaultQueue.submit([commandEncoder.finish()]);
+
+    textureDataBuffer.destroy();
 
     if (generateMipmaps) {
       // WARNING! THIS IS CURRENTLY ASYNC!
