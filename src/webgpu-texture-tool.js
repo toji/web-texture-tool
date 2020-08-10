@@ -43,6 +43,14 @@ const EXTENSION_FORMATS = {
   ]
 };
 
+const FORMAT_BLOCK_SIZE = {
+  'rgba8unorm': { byteLength: 4, width: 1, height: 1, canGenerateMipmaps: true },
+  'bc1-rgba-unorm': { byteLength: 8, width: 4, height: 4 },
+  'bc2-rgba-unorm': { byteLength: 16, width: 4, height: 4 },
+  'bc3-rgba-unorm': { byteLength: 16, width: 4, height: 4 },
+  'bc7-rgba-unorm': { byteLength: 16, width: 4, height: 4 },
+};
+
 /**
  * Determines the number of mip levels needed for a full mip chain given the width and height of texture level 0.
  *
@@ -194,9 +202,12 @@ class WebGPUTextureClient {
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
   textureFromLevelData(buffer, mipLevels, format, generateMipmaps) {
-    if (format != 'rgba8unorm') {
-      generateMipmaps = false;
+    const blockSize = FORMAT_BLOCK_SIZE[format];
+    if (!blockSize) {
+      throw new Error(`No block size information for format "${format}"`);
     }
+
+    generateMipmaps = generateMipmaps && blockSize.canGenerateMipmaps;
 
     const topLevel = mipLevels[0];
     for (const mipLevel of mipLevels) {
@@ -208,44 +219,33 @@ class WebGPUTextureClient {
     const mipLevelCount = mipLevels.length > 1 ? mipLevels.length :
                             (generateMipmaps ? calculateMipLevels(topLevel.width, topLevel.height) : 1);
 
+    let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
+    if (generateMipmaps) {
+      usage |= GPUTextureUsage.OUTPUT_ATTACHMENT;
+    }
+
     const textureDescriptor = {
       size: {width: topLevel.width, height: topLevel.height, depth: 1},
       format,
-      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED,
+      usage,
       mipLevelCount: mipLevelCount,
     };
     const texture = this.device.createTexture(textureDescriptor);
 
     const commandEncoder = this.device.createCommandEncoder({});
 
-    if (mipLevelCount > 1) {
-      console.log("I'm just here for the breakpoint");
-    }
-
     for (const mipLevel of mipLevels) {
-      let bytesPerImageRow = 0;
-      let blockRows = 0;
-      switch (format) {
-        case 'rgba8unorm':
-          bytesPerImageRow = mipLevel.width * 4;
-          blockRows = mipLevel.height;
-          break;
-        case 'bc1-rgba-unorm':
-          bytesPerImageRow = Math.ceil(mipLevel.width / 4) * 8;
-          blockRows = Math.ceil(mipLevel.height / 4);
-          break;
-        case 'bc2-rgba-unorm':
-        case 'bc3-rgba-unorm':
-        case 'bc7-rgba-unorm':
-          bytesPerImageRow = Math.ceil(mipLevel.width / 4) * 16;
-          blockRows = Math.ceil(mipLevel.height / 4);
-          break;
+      if (mipLevel >= mipLevelCount) {
+        console.log("WTF happened here?");
       }
+      const bytesPerImageRow = Math.ceil(mipLevel.width / blockSize.width) * blockSize.byteLength;
+      const blockRows = Math.ceil(mipLevel.height / blockSize.height);
 
       // *SIGH* bytesPerRow has to be a multiple of 256?
       const bytesPerRow = Math.ceil(bytesPerImageRow / 256) * 256;
       const bufferSize = Math.max(mipLevel.size, bytesPerRow * blockRows);
 
+      // TODO: Could be faster to pre-compute a size for a buffer big enough to hold every texture level.
       const textureDataBuffer = this.device.createBuffer({
         size: bufferSize,
         usage: GPUBufferUsage.COPY_SRC,
@@ -283,9 +283,11 @@ class WebGPUTextureClient {
         texture: texture,
         mipLevel: mipLevel.level
       }, {
-        width: mipLevel.width,
-        height: mipLevel.height,
-        depth: 1});
+        // Copy width and height must be a multiple of the format block size;
+        width: Math.ceil(mipLevel.width / blockSize.width) * blockSize.width,
+        height: Math.ceil(mipLevel.height / blockSize.height) * blockSize.height,
+        depth: 1
+      });
     }
 
     this.device.defaultQueue.submit([commandEncoder.finish()]);
@@ -315,20 +317,27 @@ class WebGPUTextureClient {
       depth: textureDescriptor.size.depth,
     };
 
-    // BUG: The fact that we have to create a second texture here is due to a bug in Chrome that doesn't allow you to
-    // use a single texture as both a sampler and a output attachement at the same time. If we could do that this code
-    // would use half as much GPU allocations and no copyTextureToTexture calls.
-    const tmpTexture = this.device.createTexture({
-      size: textureDescriptor.size,
-      format: textureDescriptor.format,
-      usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.SAMPLED | GPUTextureUsage.OUTPUT_ATTACHMENT,
-      mipLevelCount: textureDescriptor.mipLevelCount,
+    const commandEncoder = this.device.createCommandEncoder({});
+    const bindGroupLayout = this.mipmapPipeline.getBindGroupLayout(0);
+
+    let srcView = texture.createView({
+      baseMipLevel: 0,
+      mipLevelCount: 1
     });
 
-    const commandEncoder = this.device.createCommandEncoder({});
+    for (let i = 1; i < textureDescriptor.mipLevelCount; ++i) {
+      const dstView = texture.createView({
+        baseMipLevel: i,
+        mipLevelCount: 1
+      });
 
-    const bindGroupLayout = this.mipmapPipeline.getBindGroupLayout(0);
-    for (let i = 0; i < textureDescriptor.mipLevelCount; ++i) {
+      const passEncoder = commandEncoder.beginRenderPass({
+        colorAttachments: [{
+          attachment: dstView,
+          loadValue: 'load',
+        }],
+      });
+
       const bindGroup = this.device.createBindGroup({
         layout: bindGroupLayout,
         entries: [{
@@ -336,42 +345,21 @@ class WebGPUTextureClient {
           resource: this.mipmapSampler,
         }, {
           binding: 1,
-          resource: texture.createView({
-            baseMipLevel: Math.max(0, i-1),
-            mipLevelCount: 1,
-          }),
+          resource: srcView,
         }],
       });
 
-      const passEncoder = commandEncoder.beginRenderPass({
-        colorAttachments: [{
-          attachment: tmpTexture.createView({
-            baseMipLevel: i,
-            mipLevelCount: 1,
-          }),
-          loadValue: 'load',
-        }],
-      });
       passEncoder.setPipeline(this.mipmapPipeline);
       passEncoder.setBindGroup(0, bindGroup);
       passEncoder.draw(4, 1, 0, 0);
       passEncoder.endPass();
 
-      commandEncoder.copyTextureToTexture({
-        texture: tmpTexture,
-        mipLevel: i,
-      }, {
-        texture: texture,
-        mipLevel: i,
-      }, textureSize);
+      srcView = dstView;
 
-      textureSize.width = Math.max(Math.ceil(textureSize.width / 2), 1);
-      textureSize.height = Math.max(Math.ceil(textureSize.height / 2), 1);
-      textureSize.depth = Math.max(Math.ceil(textureSize.depth / 2), 1);
+      textureSize.width = Math.ceil(textureSize.width / 2);
+      textureSize.height = Math.ceil(textureSize.height / 2);
     }
     this.device.defaultQueue.submit([commandEncoder.finish()]);
-
-    tmpTexture.destroy();
 
     return texture;
   }
