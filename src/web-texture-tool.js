@@ -33,7 +33,6 @@ import {WorkerLoader} from './worker-loader.js';
  */
 const WebTextureFormat = [
   // Uncompressed formats
-  'rgb8unorm',
   'rgba8unorm',
 
   // Compressed formats
@@ -41,6 +40,7 @@ const WebTextureFormat = [
   'bc7-rgba-unorm',
 
   // Not official WebGPU texture format strings, but formats that WebGL supports.
+  'rgb8unorm',
   'rgb565unorm',
   'rgba4unorm',
   'etc1-rgb-unorm',
@@ -194,6 +194,6 @@ export class WebTextureTool {
    */
   createTextureFromColor(r, g, b, a = 1.0) {
     const data = new Uint8Array([r * 255, g * 255, b * 255, a * 255]);
-    return this[CLIENT].textureFromLevelData([{data, width: 1, height: 1}], 'rgba8unorm', false);
+    return this[CLIENT].textureFromLevelData(data, [{level:0, width: 1, height: 1, offset: 0, size: 4}], 'rgba8unorm', false);
   }
 }

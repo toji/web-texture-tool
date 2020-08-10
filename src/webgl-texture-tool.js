@@ -214,10 +214,27 @@ class WebGLTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  textureFromLevelData(levels, format, generateMipmaps) {
+  textureFromLevelData(buffer, mipLevels, format, generateMipmaps) {
     const gl = this.gl;
     const glFormat = resolveFormat(format);
-    const level0 = levels[0];
+
+    const topLevel = mipLevels[0];
+    const levelData = [];
+    for (const mipLevel of mipLevels) {
+      switch (format) {
+        case 'rgb565unorm':
+        case 'rgba4unorm':
+          levelData[mipLevel.level] = new Uint16Array(buffer, mipLevel.offset, mipLevel.size / 2);
+          break;
+        default:
+          levelData[mipLevel.level] = new Uint8Array(buffer, mipLevel.offset, mipLevel.size);
+          break;
+      }
+
+      if (mipLevel.level < topLevel.level) {
+        topLevel = mipLevel;
+      }
+    }
 
     // Can't automatically generate mipmaps for compressed formats.
     if (glFormat.compressed) {
@@ -226,10 +243,10 @@ class WebGLTextureClient {
 
     // For WebGL 1.0 only generate mipmaps if the texture is a power of two size.
     if (!this.isWebGL2 && generateMipmaps) {
-      generateMipmaps = isPowerOfTwo(level0.width) && isPowerOfTwo(level0.height);
+      generateMipmaps = isPowerOfTwo(topLevel.width) && isPowerOfTwo(topLevel.height);
     }
-    const mipLevels = levels.length > 1 ? levels.length :
-                                         (generateMipmaps ? calculateMipLevels(level0.width, level0.height) : 1);
+    const mipLevelCount = mipLevels.length > 1 ? mipLevels.length :
+                                         (generateMipmaps ? calculateMipLevels(topLevel.width, topLevel.height) : 1);
 
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -237,46 +254,45 @@ class WebGLTextureClient {
     const useTexStorage = this.isWebGL2 && (!glFormat.compressed || glFormat.texStorage);
 
     if (useTexStorage) {
-      gl.texStorage2D(gl.TEXTURE_2D, mipLevels, glFormat.sizedFormat, level0.width, level0.height);
+      gl.texStorage2D(gl.TEXTURE_2D, mipLevelCount, glFormat.sizedFormat, topLevel.width, topLevel.height);
     }
 
-    for (let i = 0; i < levels.length; ++i) {
-      const level = levels[i];
+    for (const mipLevel of mipLevels) {
       if (glFormat.compressed) {
         if (useTexStorage) {
           gl.compressedTexSubImage2D(
-              gl.TEXTURE_2D, i,
-              0, 0, level.width, level.height,
+              gl.TEXTURE_2D, mipLevel.level,
+              0, 0, mipLevel.width, mipLevel.height,
               glFormat.sizedFormat,
-              level.data);
+              levelData[mipLevel.level]);
         } else {
           gl.compressedTexImage2D(
               gl.TEXTURE_2D, i, glFormat.sizedFormat,
-              level.width, level.height, 0,
-              level.data);
+              mipLevel.width, mipLevel.height, 0,
+              levelData[mipLevel.level]);
         }
       } else {
         if (useTexStorage) {
           gl.texSubImage2D(
-              gl.TEXTURE_2D, i,
-              0, 0, level.width, level.height,
+              gl.TEXTURE_2D, mipLevel.level,
+              0, 0, mipLevel.width, mipLevel.height,
               glFormat.format, glFormat.type,
-              level.data);
+              levelData[mipLevel.level]);
         } else {
           gl.texImage2D(
-              gl.TEXTURE_2D, i, glFormat.format,
-              level.width, level.height, 0,
+              gl.TEXTURE_2D, mipLevel.level, glFormat.format,
+              mipLevel.width, mipLevel.height, 0,
               glFormat.format, glFormat.type,
-              level.data);
+              levelData[mipLevel.level]);
         }
       }
     }
 
-    if (generateMipmaps && levels.length == 1) {
+    if (generateMipmaps && mipLevels.length == 1) {
       gl.generateMipmap(gl.TEXTURE_2D);
     }
 
-    return new WebTextureResult(texture, level0.width, level0.height, 1, mipLevels, format);
+    return new WebTextureResult(texture, topLevel.width, topLevel.height, 1, mipLevelCount, format);
   }
 }
 

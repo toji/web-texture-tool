@@ -52,7 +52,7 @@ let nextPendingTextureId = 1;
  * @param {Array<object>} mipLevels - Description of size and offset of each mip level in buffer.
  * @returns {Promise<module:WebTextureTool.WebTextureResult>} - Completed texture.
  */
-function finishTexture(pendingTexture, format, buffer, mipLevels) {
+/*function finishTexture(pendingTexture, format, buffer, mipLevels) {
   const levels = [];
   for (const mipLevel of mipLevels) {
     const level = {
@@ -72,8 +72,8 @@ function finishTexture(pendingTexture, format, buffer, mipLevels) {
     levels[mipLevel.level] = level;
   }
 
-  return pendingTexture.client.textureFromLevelData(levels, format, pendingTexture.options.mipmaps);
-}
+  return pendingTexture.client.textureFromLevelData(buffer, mipLevels, format, pendingTexture.options.mipmaps);
+}*/
 
 /**
  * Called when the worker either finished transcoding a file or encounters an error.
@@ -104,7 +104,8 @@ function onWorkerMessage(msg) {
   }
 
   // Upload the image data returned by the worker.
-  const result = finishTexture(pendingTexture, msg.data.format, msg.data.buffer, msg.data.mipLevels);
+  //finishTexture(pendingTexture, msg.data.format, msg.data.buffer, msg.data.mipLevels);
+  const result = pendingTexture.client.textureFromLevelData(msg.data.buffer, msg.data.mipLevels, msg.data.format, pendingTexture.options.mipmaps);
   pendingTexture.resolve(result);
 }
 

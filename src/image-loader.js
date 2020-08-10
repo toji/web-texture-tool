@@ -62,7 +62,12 @@ export class ImageLoader {
    * client.
    */
   async loadTextureFromUrl(client, url, options) {
-    const format = IMAGE_TEXTURE_EXTENSIONS[options.extension].format;
+    let format = IMAGE_TEXTURE_EXTENSIONS[options.extension].format;
+
+    if (client.supportedFormatList.indexOf(format) == -1) {
+      // 'rgba8unorm' must be supported by all clients
+      format = 'rgba8unorm';
+    }
 
     if (IMAGE_BITMAP_SUPPORTED) {
       const response = await fetch(url);

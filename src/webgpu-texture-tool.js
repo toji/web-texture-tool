@@ -24,9 +24,24 @@
 import {WebTextureTool, WebTextureResult} from './web-texture-tool.js';
 
 // TODO: Replace shaders with WGSL, which won't require a separate compile
-import glslangModule from './third-party/glslang/glslang.js';
+import glslangModule from 'https://unpkg.com/@webgpu/glslang@0.0.7/web/glslang.js';
 
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
+
+const EXTENSION_FORMATS = {
+  'texture-compression-bc': [
+    'bc1-rgba-unorm',
+    'bc2-rgba-unorm',
+    'bc3-rgba-unorm',
+    'bc7-rgba-unorm',
+  ],
+  'textureCompressionBC': [  // Non-standard
+    'bc1-rgba-unorm',
+    'bc2-rgba-unorm',
+    'bc3-rgba-unorm',
+    'bc7-rgba-unorm',
+  ]
+};
 
 /**
  * Determines the number of mip levels needed for a full mip chain given the width and height of texture level 0.
@@ -53,8 +68,18 @@ class WebGPUTextureClient {
     this.device = device;
 
     this.supportedFormatList = [
-      'rgb8unorm', 'rgba8unorm',
+      'rgba8unorm',
     ];
+
+    // Add any other formats that are exposed by extensions.
+    if (device.extensions) {
+      for (const extension of device.extensions) {
+        const formats = EXTENSION_FORMATS[extension];
+        if (formats) {
+          this.supportedFormatList.push(...formats);
+        }
+      }
+    }
 
     this.mipmapPipeline = null;
     this.mipmapSampler = null;
@@ -130,7 +155,7 @@ class WebGPUTextureClient {
     };
     const texture = this.device.createTexture(textureDescriptor);
 
-    this.device.defaultQueue.copyImageBitmapToTexture({imageBitmap}, {texture}, imageSize);
+    this.device.defaultQueue.copyImageBitmapToTexture({imageBitmap}, {texture}, textureDescriptor.size);
 
     if (generateMipmaps) {
       await this.generateMipmap(texture, textureDescriptor);
@@ -168,31 +193,101 @@ class WebGPUTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  textureFromLevelData(levels, format, generateMipmaps) {
-    const level0 = levels[0];
-    const mipLevelCount = generateMipmaps ? calculateMipLevels(level0.width, level0.height) : 1;
+  textureFromLevelData(buffer, mipLevels, format, generateMipmaps) {
+    if (format != 'rgba8unorm') {
+      generateMipmaps = false;
+    }
+
+    const topLevel = mipLevels[0];
+    for (const mipLevel of mipLevels) {
+      if (mipLevel.level < topLevel.level) {
+        topLevel = mipLevel;
+      }
+    }
+
+    const mipLevelCount = mipLevels.length > 1 ? mipLevels.length :
+                            (generateMipmaps ? calculateMipLevels(topLevel.width, topLevel.height) : 1);
+
     const textureDescriptor = {
-      size: {width: level0.width, height: level0.height, depth: 1},
+      size: {width: topLevel.width, height: topLevel.height, depth: 1},
       format,
       usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED,
-      mipLevelCount,
+      mipLevelCount: mipLevelCount,
     };
     const texture = this.device.createTexture(textureDescriptor);
 
-    const [textureDataBuffer, textureDataArray] = this.device.createBufferMapped({
-      // BUG? WTF is up with this?!? bytesPerRow has to be a multiple of 256?
-      size: 256,
-      usage: GPUBufferUsage.COPY_SRC,
-    });
-    new Uint8Array(textureDataArray).set(imageData);
-    textureDataBuffer.unmap();
-
     const commandEncoder = this.device.createCommandEncoder({});
-    commandEncoder.copyBufferToTexture({
-      buffer: textureDataBuffer,
-      bytesPerRow: 256,
-      rowsPerImage: 0, // What is this for?
-    }, {texture: texture}, textureDescriptor.size);
+
+    if (mipLevelCount > 1) {
+      console.log("I'm just here for the breakpoint");
+    }
+
+    for (const mipLevel of mipLevels) {
+      let bytesPerImageRow = 0;
+      let blockRows = 0;
+      switch (format) {
+        case 'rgba8unorm':
+          bytesPerImageRow = mipLevel.width * 4;
+          blockRows = mipLevel.height;
+          break;
+        case 'bc1-rgba-unorm':
+          bytesPerImageRow = Math.ceil(mipLevel.width / 4) * 8;
+          blockRows = Math.ceil(mipLevel.height / 4);
+          break;
+        case 'bc2-rgba-unorm':
+        case 'bc3-rgba-unorm':
+        case 'bc7-rgba-unorm':
+          bytesPerImageRow = Math.ceil(mipLevel.width / 4) * 16;
+          blockRows = Math.ceil(mipLevel.height / 4);
+          break;
+      }
+
+      // *SIGH* bytesPerRow has to be a multiple of 256?
+      const bytesPerRow = Math.ceil(bytesPerImageRow / 256) * 256;
+      const bufferSize = Math.max(mipLevel.size, bytesPerRow * blockRows);
+
+      const textureDataBuffer = this.device.createBuffer({
+        size: bufferSize,
+        usage: GPUBufferUsage.COPY_SRC,
+        mappedAtCreation: true
+      });
+
+      const textureDataArray = textureDataBuffer.getMappedRange();
+      const textureBytes = new Uint8Array(textureDataArray);
+
+      if (bytesPerRow == bytesPerImageRow || blockRows == 1) {
+        // Fast path: Everything lines up and we can just blast the image data into the buffer in one go.
+        textureBytes.set(new Uint8Array(buffer, mipLevel.offset, mipLevel.size));
+
+        // This should work just as well. Why doesn't it?
+        /*this.device.defaultQueue.writeTexture(
+          {texture: texture},
+          new Uint8Array(buffer, mipLevel.offset, mipLevel.size),
+          {bytesPerRow},
+          textureDescriptor.size);*/
+      } else {
+        // Slow path: Otherwise we need to loop through the texture and copy it's content's row. by. row.
+        for (let i = 0; i < blockRows; ++i) {
+          textureBytes.set(
+            new Uint8Array(buffer, mipLevel.offset + (bytesPerImageRow*i), bytesPerImageRow),
+            bytesPerRow*i);
+        }
+      }
+
+      textureDataBuffer.unmap();
+
+      commandEncoder.copyBufferToTexture({
+        buffer: textureDataBuffer,
+        bytesPerRow,
+      }, {
+        texture: texture,
+        mipLevel: mipLevel.level
+      }, {
+        width: mipLevel.width,
+        height: mipLevel.height,
+        depth: 1});
+    }
+
     this.device.defaultQueue.submit([commandEncoder.finish()]);
 
     if (generateMipmaps) {
@@ -201,7 +296,7 @@ class WebGPUTextureClient {
       this.generateMipmap(texture, textureDescriptor);
     }
 
-    return new WebTextureResult(texture, width, height, 1, 1, format);
+    return new WebTextureResult(texture, topLevel.width, topLevel.height, 1, mipLevelCount, format);
   }
 
   /**
@@ -213,6 +308,12 @@ class WebGPUTextureClient {
    */
   async generateMipmap(texture, textureDescriptor) {
     await this.mipmapReady;
+
+    const textureSize = {
+      width: textureDescriptor.size.width,
+      height: textureDescriptor.size.height,
+      depth: textureDescriptor.size.depth,
+    };
 
     // BUG: The fact that we have to create a second texture here is due to a bug in Chrome that doesn't allow you to
     // use a single texture as both a sampler and a output attachement at the same time. If we could do that this code
@@ -264,8 +365,9 @@ class WebGPUTextureClient {
         mipLevel: i,
       }, textureSize);
 
-      textureSize.width = Math.ceil(textureSize.width / 2);
-      textureSize.height = Math.ceil(textureSize.height / 2);
+      textureSize.width = Math.max(Math.ceil(textureSize.width / 2), 1);
+      textureSize.height = Math.max(Math.ceil(textureSize.height / 2), 1);
+      textureSize.depth = Math.max(Math.ceil(textureSize.depth / 2), 1);
     }
     this.device.defaultQueue.submit([commandEncoder.finish()]);
 

@@ -44,90 +44,27 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
   </head>
 
   <body>
-    <canvas id='output-canvas'></canvas>
+    <!--canvas id='output-canvas'></canvas-->
 
     <script type='module'>
-      import {WebGLTextureTool} from '../src/webgl-texture-tool.js';
+      //import {WebGLTextureTool} from '../src/webgl-texture-tool.js';
+
+      import {WebGLRenderer} from './webgl-renderer.js';
+      import {WebGPURenderer} from './webgpu-renderer.js';
 
       import {vec3, mat4} from './gl-matrix/src/gl-matrix.js';
       import * as Util from './gl-utils.js';
 
-      const canvas = document.getElementById('output-canvas');
-      const gl = canvas.getContext('webgl2');
-
-      const wtt = new WebGLTextureTool(gl);
-
-      const attributes = {
-        position: 0,
-        texCoord: 1,
-      };
-      const projectionMat = mat4.create();
-
-      const vertexSrc = `
-        attribute vec3 position;
-        attribute vec2 texCoord;
-
-        varying vec2 v_texCoord;
-
-        uniform mat4 modelView;
-        uniform mat4 projection;
-
-        void main() {
-          v_texCoord = texCoord;
-          gl_Position = projection * modelView * vec4(position, 1.0);
-        }
-      `;
-
-      const fragmentSrc = `
-        precision mediump float;
-
-        varying vec2 v_texCoord;
-
-        uniform sampler2D baseColor;
-
-        void main() {
-          gl_FragColor = texture2D(baseColor, v_texCoord);
-        }
-      `;
-      const program = new Util.Program(gl, vertexSrc, fragmentSrc, attributes);
-
-      const vao = gl.createVertexArray();
-      gl.bindVertexArray(vao);
-
-      const vertBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, vertBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-        -1.0, 1.0, 0.0,    0.0, 1.0,
-        1.0, 1.0, 0.0,    1.0, 1.0,
-        1.0, -1.0, 0.0,    1.0, 0.0,
-        -1.0, -1.0, 0.0,    0.0, 0.0,
-      ]), gl.STATIC_DRAW);
-
-      const indexBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([
-        0, 1, 2,
-        0, 2, 3
-      ]), gl.STATIC_DRAW);
-
-      gl.enableVertexAttribArray(attributes.position);
-      gl.enableVertexAttribArray(attributes.texCoord);
-      gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, 20, 0);
-      gl.vertexAttribPointer(attributes.texCoord, 2, gl.FLOAT, false, 20, 12);
-
-      gl.bindVertexArray(null);
-
-      gl.clearColor(0.0, 0.0, 0.0, 1.0);
-
-      let nextTexturePath = 0;
       const textureNames = [
-        /*'./textures/basis/kodim03.basis',
+        './badPath.png',
+
+        './textures/basis/kodim03.basis',
         './textures/basis/kodim03_uastc.basis',
         './textures/basis/kodim20.basis',
         './textures/basis/kodim26_uastc_1024.basis',
         './textures/basis/largerblock3b4.basis',
 
-        './textures/jpg/Chip001_2K-JPG/Chip001_2K_Color.jpg',
+        /*'./textures/jpg/Chip001_2K-JPG/Chip001_2K_Color.jpg',
         './textures/jpg/Chip001_2K-JPG/Chip001_2K_Roughness.jpg',
         './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_AmbientOcclusion.jpg',
         './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_Color.jpg',
@@ -155,21 +92,14 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
         //'./textures/ktx/Iron_Bars_001_normal_uastc_rdo3_zstd5.ktx2',
         //'./textures/ktx/ktx_document_basis.ktx2',
 
-        //'./textures/ktx/color_grid.basis',
+        './textures/ktx/color_grid.basis',
         './textures/ktx/color_grid_basis.ktx2',
         './textures/ktx/FlightHelmet_baseColor_basis.ktx2',
         './textures/ktx/kodim17_basis.ktx2',
         './textures/ktx/rgba-mipmap-reference-basis.ktx2',
-      ]
+      ];
 
-      function loadNextTexture() {
-        if (!Math.floor(Math.random() * 15)) {
-          return Promise.resolve(wtt.createTextureFromColor(Math.random(), Math.random(), Math.random()));
-        }
-        const url = textureNames[nextTexturePath];
-        nextTexturePath = (nextTexturePath + 1) % textureNames.length;
-        return wtt.loadTextureFromUrl(url);
-      }
+      const projectionMat = mat4.create();
 
       const tileColumns = 5;
       const tileRows = 6;
@@ -177,7 +107,6 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
       class TextureTile {
         constructor(column, row) {
-          this.texture = null;
           this.x = ((column - (tileColumns / 2)) * 2) + 1;
           this.yOffset = (row * 2 + (column * 0.66));
           this.scroll = 0;
@@ -193,21 +122,10 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           if (this.nextLoad <= 0 && !this.loading) {
             this.loading = true;
             this.targetScale = 0;
-            loadNextTexture().then((result) => {
+            loadNextTexture(this).then((result) => {
               this.loading = false;
               this.nextLoad = 5000 + (Math.random() * 3000);
               this.texture = result.texture;
-              this.targetScale = 1;
-
-              gl.bindTexture(gl.TEXTURE_2D, this.texture);
-              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, result.mipLevels > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
-            }).catch((err) => {
-              // If an error occurs plug in a solid color texture to fill it's
-              // place.
-              this.loading = false;
-              this.nextLoad = 2000 + (Math.random() * 3000);
-              this.texture = wtt.createTextureFromColor(0.5, 0.0, 0.0).texture;
               this.targetScale = 1;
             });
           } else {
@@ -217,7 +135,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           mat4.identity(this.modelView);
           this.scroll += delta / 1000;
           const y = ((this.yOffset + this.scroll) % (tileRows * 2)) - tileRows;
-          mat4.translate(this.modelView, this.modelView, [this.x, y, -1.0]);
+          mat4.translate(this.modelView, this.modelView, [this.x, y, 0.0]);
 
           if (this.scale != this.targetScale) {
             this.scale += ( this.targetScale - this.scale ) * 0.1;
@@ -233,6 +151,22 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
         }
       }
 
+      //const renderer = new WebGLRenderer();
+      const renderer = new WebGPURenderer();
+
+      let nextTexturePath = 0;
+
+      function loadNextTexture(tile) {
+        // Every once in a while return a solid color texture, just for fun.
+        /*if (!Math.floor(Math.random() * 15)) {
+          return Promise.resolve(renderer.textureTool.createTextureFromColor(
+              Math.random(), Math.random(), Math.random()));
+        }*/
+        const url = textureNames[nextTexturePath];
+        nextTexturePath = (nextTexturePath + 1) % textureNames.length;
+        return renderer.loadTextureFromUrl(tile, url);
+      }
+
       let lastTimestamp = 0;
       function onFrame(timestamp) {
         let delta = lastTimestamp ? timestamp - lastTimestamp : 0;
@@ -244,38 +178,35 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
         window.requestAnimationFrame(onFrame);
 
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        program.use();
-        gl.uniformMatrix4fv(program.uniform.projection, false, projectionMat);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.uniform1i(program.uniform.baseColor, 0);
-
-        gl.bindVertexArray(vao);
-
         for (let tile of tiles) {
           tile.update(delta);
-
-          if (tile.texture) {
-            gl.uniformMatrix4fv(program.uniform.modelView, false, tile.modelView);
-            gl.bindTexture(gl.TEXTURE_2D, tile.texture);
-            gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-          }
         }
 
-        gl.bindVertexArray(null);
+        renderer.onFrame(projectionMat, tiles);
       }
-      window.requestAnimationFrame(onFrame);
 
-      Util.observePixelSize(canvas, (width, height) => {
-        canvas.width = width;
-        canvas.height = height;
-        gl.viewport(0, 0, width, height);
-        const aspect = width/height;
-        mat4.ortho(projectionMat, -tileColumns * aspect, tileColumns * aspect, (tileRows - 1), -(tileRows - 1), 0.01, 100);
+      renderer.initialize().then(() => {
+        const canvas = renderer.canvas;
+        document.body.appendChild(canvas);
+        Util.observePixelSize(canvas, (width, height) => {
+          canvas.width = width;
+          canvas.height = height;
+
+          const aspect = width/height;
+          mat4.ortho(projectionMat,
+            -tileColumns * aspect, tileColumns * aspect,
+            (tileRows - 1), -(tileRows - 1),
+            -1, 1);
+
+          renderer.onCanvasResize(width, height);
+        });
+
+        for (let tile of tiles) {
+          renderer.initializeTile(tile);
+        }
+
+        window.requestAnimationFrame(onFrame);
       });
-
     </script>
   </body>
 </html>
