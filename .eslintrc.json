@@ -19,5 +19,11 @@
       "prefer": {"returns": "returns"}
     }]
   },
-  "ignorePatterns": ["basis_transcoder.js", "**/third-party", "dds-loader.js", "dds-worker.js"]
+  "ignorePatterns": [
+    "basis_transcoder.js",
+    "ktx-worker.js",
+    "msc_transcoder_wrapper.js",
+    "**/third-party",
+    "dds-worker.js"
+  ]
 }

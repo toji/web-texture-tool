@@ -91,13 +91,28 @@ export class WebTextureResult {
   }
 }
 
+/**
+ * Associates a set of extensions with a specifc loader.
+ */
 class ExtensionHandler {
+  /**
+   * Creates an ExtensionHandler.
+   *
+   * @param {Array<string>} extensions - List of extensions that this loader can handle.
+   * @param {Function} callback - Callback which returns an instance of the loader.
+   */
   constructor(extensions, callback) {
     this.extensions = extensions;
     this.callback = callback;
     this.loader = null;
   }
 
+  /**
+   * Gets the loader associated with this extension set. Creates an instance by calling the callback if one hasn't been
+   * instantiated previously.
+   *
+   * @returns {object} Texture Loader instance.
+   */
   getLoader() {
     if (!this.loader) {
       this.loader = this.callback();
@@ -188,7 +203,8 @@ export class WebTextureTool {
     return loader.loadTextureFromUrl(this[CLIENT], TMP_ANCHOR.href, options);
   }
 
-  /** Creates a 1x1 texture with the specified color.
+  /**
+   * Creates a 1x1 texture with the specified color.
    *
    * @param {number} r - Red channel value
    * @param {number} g - Green channel value
@@ -201,18 +217,35 @@ export class WebTextureTool {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
     const data = new Uint8Array([r * 255, g * 255, b * 255, a * 255]);
-    return this[CLIENT].textureFromLevelData(data, [{level:0, width: 1, height: 1, offset: 0, size: 4}], 'rgba8unorm', false);
+    return this[CLIENT].textureFromLevelData(
+        data, [{level: 0, width: 1, height: 1, offset: 0, size: 4}], 'rgba8unorm', false);
   }
 
+  /**
+   * Sets whether or not compressed formats should be loaded.
+   * If `false` and a compressed texture can be transcoded to an uncompressed format it will be, otherwise it will be
+   * rejected.
+   *
+   * @param {boolean} value - `true` if compressed formats should be loaded.
+   */
   set allowCompressedFormats(value) {
     this[CLIENT].allowCompressedFormats = !!value;
   }
 
+  /**
+   * Returns whether or not compressed formats should be loaded.
+   *
+   * @returns {boolean} `true` if compressed formats should be loaded.
+   */
   get allowCompressedFormats() {
     return this[CLIENT].allowCompressedFormats;
   }
 
-  /** Destroys the texture tool and stops any in-progress texture loads that have been started. */
+  /**
+   * Destroys the texture tool and stops any in-progress texture loads that have been started.
+   *
+   * @returns {void}
+   */
   destroy() {
     if (this[CLIENT]) {
       this[CLIENT].destroy();
@@ -221,12 +254,14 @@ export class WebTextureTool {
       // TODO: Should this happen?
       // Would have to make sure every instance had it's own copies of the loaders.
       // Shut down every loader that this class has initialized.
-      /*for (const extensionHandler of this[LOADERS]) { // Doesn't work
+      /*
+      for (const extensionHandler of this[LOADERS]) { // Doesn't work
         if (extensionHandler.loader) {
           extensionHandler.loader.destroy();
           extensionHandler.loader = null;
         }
-      }*/
+      }
+      */
     }
   }
 }

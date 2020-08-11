@@ -44,38 +44,6 @@ const pendingTextures = {};
 let nextPendingTextureId = 1;
 
 /**
- * Prepares the transcoded level data and passes it to the given client.
- *
- * @param {PendingTextureRequest} pendingTexture - Pending texture request.
- * @param {module:WebTextureTool.WebTextureFormat} format - Format the texture was transcoded to.
- * @param {module:External.ArrayBufferView} buffer - Buffer which contains all transcoded mip level data, packed.
- * @param {Array<object>} mipLevels - Description of size and offset of each mip level in buffer.
- * @returns {Promise<module:WebTextureTool.WebTextureResult>} - Completed texture.
- */
-/*function finishTexture(pendingTexture, format, buffer, mipLevels) {
-  const levels = [];
-  for (const mipLevel of mipLevels) {
-    const level = {
-      width: mipLevel.width,
-      height: mipLevel.height,
-    };
-
-    switch (format) {
-      case 'rgb565unorm':
-      case 'rgba4unorm':
-        level.data = new Uint16Array(buffer, mipLevel.offset, mipLevel.size / 2);
-        break;
-      default:
-        level.data = new Uint8Array(buffer, mipLevel.offset, mipLevel.size);
-        break;
-    }
-    levels[mipLevel.level] = level;
-  }
-
-  return pendingTexture.client.textureFromLevelData(buffer, mipLevels, format, pendingTexture.options.mipmaps);
-}*/
-
-/**
  * Called when the worker either finished transcoding a file or encounters an error.
  *
  * @param {object} msg - Message contents from the worker
@@ -104,8 +72,8 @@ function onWorkerMessage(msg) {
   }
 
   // Upload the image data returned by the worker.
-  //finishTexture(pendingTexture, msg.data.format, msg.data.buffer, msg.data.mipLevels);
-  const result = pendingTexture.client.textureFromLevelData(msg.data.buffer, msg.data.mipLevels, msg.data.format, pendingTexture.options.mipmaps);
+  const result = pendingTexture.client.textureFromLevelData(
+      msg.data.buffer, msg.data.mipLevels, msg.data.format, pendingTexture.options.mipmaps);
   pendingTexture.resolve(result);
 }
 
@@ -115,6 +83,8 @@ function onWorkerMessage(msg) {
 export class WorkerLoader {
   /**
    * Creates a BasisLoader instance.
+   *
+   * @param {string} relativeWorkerPath - Path to the worker script to load, relative to this file.
    */
   constructor(relativeWorkerPath) {
     // Load the worker script.
@@ -140,7 +110,7 @@ export class WorkerLoader {
       url: url,
       supportedFormats: client.supportedFormats(),
       mipmaps: options.mipmaps,
-      extension: options.extension
+      extension: options.extension,
     });
 
     return new Promise((resolve, reject) => {
@@ -148,13 +118,19 @@ export class WorkerLoader {
     });
   }
 
+  /**
+   * Destroy this loader.
+   * Terminates the worker and rejects any outstanding textures. The loader is unusable after calling destroy().
+   *
+   * @returns {void}
+   */
   destroy() {
     if (this.worker) {
       this.worker.terminate();
 
       const destroyedError = new Error('Texture loader was destroyed.');
       for (const pendingTexture of pendingTextures) {
-        pendingTextures.reject(destroyedError);
+        pendingTexture.reject(destroyedError);
       }
     }
   }

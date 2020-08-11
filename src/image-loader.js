@@ -58,8 +58,8 @@ export class ImageLoader {
    * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
    * @param {string} url - An absolute URL that the texture file should be loaded from.
    * @param {object} options - Options for how the loaded texture should be handled.
-   * @returns {Promise<WebTextureResult>} - The WebTextureResult obtained from passing the parsed file data to the
-   * client.
+   * @returns {Promise<module:WebTextureLoader.WebTextureResult>} - The WebTextureResult obtained from passing the
+   * parsed file data to the client.
    */
   async loadTextureFromUrl(client, url, options) {
     let format = IMAGE_TEXTURE_EXTENSIONS[options.extension].format;
@@ -87,6 +87,11 @@ export class ImageLoader {
     };
   }
 
+  /**
+   * Destroy this loader.
+   *
+   * @returns {void}
+   */
   destroy() {
     // Nothing to clean up here.
   }

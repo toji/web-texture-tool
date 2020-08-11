@@ -170,7 +170,9 @@ class WebGLTextureClient {
    */
   textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
     const gl = this.gl;
-    if (!gl) { return null; }
+    if (!gl) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
 
     // For WebGL 1.0 only generate mipmaps if the texture is a power of two size.
     if (!this.isWebGL2 && generateMipmaps) {
@@ -217,8 +219,9 @@ class WebGLTextureClient {
   /**
    * Creates a WebGLTexture from the given texture level data.
    *
-   * @param {Array<module:WebTextureTool.WebTextureLevelData>} levels - An array of data and descriptions for each mip
-   * level of the texture.
+   * @param {ArrayBuffer} buffer - Buffer containing all data for the mip levels.
+   * @param {Array<module:WebTextureTool.WebTextureLevelData>} mipLevels - An array of data and descriptions for each
+   * mip level of the texture.
    * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the data is provided in. May be a
    * compressed format.
    * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given.
@@ -226,7 +229,9 @@ class WebGLTextureClient {
    */
   textureFromLevelData(buffer, mipLevels, format, generateMipmaps) {
     const gl = this.gl;
-    if (!gl) { return null; }
+    if (!gl) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
 
     const glFormat = resolveFormat(format);
 
@@ -307,6 +312,12 @@ class WebGLTextureClient {
     return new WebTextureResult(texture, topLevel.width, topLevel.height, 1, mipLevelCount, format);
   }
 
+  /**
+   * Destroy this client.
+   * The client is unusable after calling destroy().
+   *
+   * @returns {void}
+   */
   destroy() {
     this.gl = null;
   }

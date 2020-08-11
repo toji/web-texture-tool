@@ -35,20 +35,20 @@ const EXTENSION_FORMATS = {
     'bc3-rgba-unorm',
     'bc7-rgba-unorm',
   ],
-  'textureCompressionBC': [  // Non-standard
+  'textureCompressionBC': [ // Non-standard
     'bc1-rgba-unorm',
     'bc2-rgba-unorm',
     'bc3-rgba-unorm',
     'bc7-rgba-unorm',
-  ]
+  ],
 };
 
 const FORMAT_BLOCK_SIZE = {
-  'rgba8unorm': { byteLength: 4, width: 1, height: 1, canGenerateMipmaps: true },
-  'bc1-rgba-unorm': { byteLength: 8, width: 4, height: 4 },
-  'bc2-rgba-unorm': { byteLength: 16, width: 4, height: 4 },
-  'bc3-rgba-unorm': { byteLength: 16, width: 4, height: 4 },
-  'bc7-rgba-unorm': { byteLength: 16, width: 4, height: 4 },
+  'rgba8unorm': {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: true},
+  'bc1-rgba-unorm': {byteLength: 8, width: 4, height: 4},
+  'bc2-rgba-unorm': {byteLength: 16, width: 4, height: 4},
+  'bc3-rgba-unorm': {byteLength: 16, width: 4, height: 4},
+  'bc7-rgba-unorm': {byteLength: 16, width: 4, height: 4},
 };
 
 /**
@@ -163,7 +163,9 @@ class WebGPUTextureClient {
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
   async textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
-    if (!this.device) { return null; }
+    if (!this.device) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
     const mipLevelCount = generateMipmaps ? calculateMipLevels(imageBitmap.width, imageBitmap.height) : 1;
 
     let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
@@ -200,7 +202,9 @@ class WebGPUTextureClient {
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
   async textureFromImageElement(image, format, generateMipmaps) {
-    if (!this.device) { return null; }
+    if (!this.device) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
     if (!IMAGE_BITMAP_SUPPORTED) {
       throw new Error('Must support ImageBitmap to use WebGPU. (How did you even get to this error?)');
     }
@@ -211,15 +215,18 @@ class WebGPUTextureClient {
   /**
    * Creates a GPUTexture from the given texture level data.
    *
-   * @param {Array<module:WebTextureTool.WebTextureLevelData>} levels - An array of data and descriptions for each mip
-   * level of the texture.
+   * @param {ArrayBuffer} buffer - Buffer containing all data for the mip levels.
+   * @param {Array<module:WebTextureTool.WebTextureLevelData>} mipLevels - An array of data and descriptions for each
+   * mip level of the texture.
    * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the data is provided in. May be a
    * compressed format.
    * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
   textureFromLevelData(buffer, mipLevels, format, generateMipmaps) {
-    if (!this.device) { return null; }
+    if (!this.device) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
 
     const blockSize = FORMAT_BLOCK_SIZE[format];
     if (!blockSize) {
@@ -279,7 +286,7 @@ class WebGPUTextureClient {
     const textureDataBuffer = this.device.createBuffer({
       size: textureBufferSize,
       usage: GPUBufferUsage.COPY_SRC,
-      mappedAtCreation: true
+      mappedAtCreation: true,
     });
     const textureDataArray = textureDataBuffer.getMappedRange();
 
@@ -296,17 +303,19 @@ class WebGPUTextureClient {
 
         // TODO: This should work just as well, once https://dawn-review.googlesource.com/c/dawn/+/26320 is fixed.
         // Could be that the mapped buffer approach is more efficient, though? Worth testing.
-        /*this.device.defaultQueue.writeTexture(
-          {texture: texture},
-          new Uint8Array(buffer, mipLevel.offset, mipLevel.size),
-          {offset: levelRange.textureDataOffset, bytesPerRow: levelRange.bytesPerRow},
-          textureDescriptor.size);*/
+        /*
+        this.device.defaultQueue.writeTexture(
+            {texture: texture},
+            new Uint8Array(buffer, mipLevel.offset, mipLevel.size),
+            {offset: levelRange.textureDataOffset, bytesPerRow: levelRange.bytesPerRow},
+            textureDescriptor.size);
+        */
       } else {
         // Slow path: Otherwise we need to loop through the texture and copy it's content's row by row.
         for (let i = 0; i < levelRange.blockRows; ++i) {
           textureBytes.set(
-            new Uint8Array(buffer, mipLevel.offset + (levelRange.bytesPerImageRow*i), levelRange.bytesPerImageRow),
-            levelRange.bytesPerRow*i);
+              new Uint8Array(buffer, mipLevel.offset + (levelRange.bytesPerImageRow*i), levelRange.bytesPerImageRow),
+              levelRange.bytesPerRow*i);
         }
       }
 
@@ -315,12 +324,12 @@ class WebGPUTextureClient {
         bytesPerRow: levelRange.bytesPerRow,
       }, {
         texture: texture,
-        mipLevel: mipLevel.level
+        mipLevel: mipLevel.level,
       }, {
         // Copy width and height must be a multiple of the format block size;
         width: Math.ceil(mipLevel.width / blockSize.width) * blockSize.width,
         height: Math.ceil(mipLevel.height / blockSize.height) * blockSize.height,
-        depth: 1
+        depth: 1,
       });
     }
 
@@ -349,7 +358,9 @@ class WebGPUTextureClient {
   async generateMipmap(texture, textureDescriptor) {
     await this.mipmapReady;
 
-    if (!this.device) { return null; }
+    if (!this.device) {
+      throw new Error('Cannot generate mipmaps after object has been destroyed.');
+    }
 
     const textureSize = {
       width: textureDescriptor.size.width,
@@ -362,13 +373,13 @@ class WebGPUTextureClient {
 
     let srcView = texture.createView({
       baseMipLevel: 0,
-      mipLevelCount: 1
+      mipLevelCount: 1,
     });
 
     for (let i = 1; i < textureDescriptor.mipLevelCount; ++i) {
       const dstView = texture.createView({
         baseMipLevel: i,
-        mipLevelCount: 1
+        mipLevelCount: 1,
       });
 
       const passEncoder = commandEncoder.beginRenderPass({
@@ -404,6 +415,12 @@ class WebGPUTextureClient {
     return texture;
   }
 
+  /**
+   * Destroy this client.
+   * The client is unusable after calling destroy().
+   *
+   * @returns {void}
+   */
   destroy() {
     this.device = null;
   }
