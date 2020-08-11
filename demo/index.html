@@ -60,42 +60,76 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
       const settings = {
         renderer: 'WebGL2',
+        textureSet: 'basis',
         compressedFormats: true,
       };
 
       const gui = new dat.GUI();
 
       gui.add(settings, "renderer", {WebGL2: 'WebGL2', WebGPU: 'WebGPU'}).onChange(updateRenderer);
+      gui.add(settings, "textureSet", {Basis: 'basis', KTX2: 'ktx', Jpeg: 'jpg'});
       gui.add(settings, "compressedFormats").onChange(() => {
         if (renderer) {
           renderer.textureTool.allowCompressedFormats = settings.compressedFormats;
         }
       });
 
-      const textureNames = [
-        //'./badPath.png',
+      const textureSets = {
+        basis: [
+          './textures/basis/kodim03.basis',
+          './textures/basis/kodim03_uastc.basis',
+          './textures/basis/kodim20.basis',
+          './textures/basis/kodim26_uastc_1024.basis',
+          './textures/basis/largerblock3b4.basis',
+          './textures/ktx/color_grid.basis',
+        ],
+        ktx: [
+          //'./textures/ktx/alpha_simple_basis.ktx2',
+          //'./textures/ktx/alpha_simple.basis',
+          //'./textures/ktx/camera_camera_BaseColor.ktx2',
+          //'./textures/ktx/ccwn2c08.ktx2',
+          //'./textures/ktx/CesiumLogoFlat.ktx2',
+          //'./textures/ktx/cimg5293_uastc_zstd.ktx2',
+          //'./textures/ktx/cimg5293_uastc.ktx2',
+          //'./textures/ktx/color_grid_uastc_zstd.ktx2',
+          //'./textures/ktx/color_grid_uastc.ktx2',
+          //'./textures/ktx/color_grid_zstd.ktx2',
+          //'./textures/ktx/Iron_Bars_001_normal_uastc_rdo3_zstd5.ktx2',
+          //'./textures/ktx/ktx_document_basis.ktx2',
 
+          './textures/ktx/color_grid_basis.ktx2',
+          './textures/ktx/FlightHelmet_baseColor_basis.ktx2',
+          './textures/ktx/kodim17_basis.ktx2',
+          './textures/ktx/rgba-mipmap-reference-basis.ktx2',
+        ],
+        jpg: [
+          './textures/jpg/Chip001_2K-JPG/Chip001_2K_Color.jpg',
+          './textures/jpg/Chip001_2K-JPG/Chip001_2K_Roughness.jpg',
+          './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_AmbientOcclusion.jpg',
+          './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_Color.jpg',
+          './textures/jpg/PavingStones053_2K-JPG/PavingStones053_2K_Color.jpg',
+          './textures/jpg/PavingStones053_2K-JPG/PavingStones053_2K_Normal.jpg',
+          './textures/jpg/Rock026_2K-JPG/Rock026_2K_Color.jpg',
+          './textures/jpg/Rock026_2K-JPG/Rock026_2K_Normal.jpg',
+          './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Color.jpg',
+          './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Normal.jpg',
+          './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Roughness.jpg',
+          './textures/jpg/Tiles052_2K-JPG/Tiles052_2K_Color.jpg',
+          './textures/jpg/Tiles052_2K-JPG/Tiles052_2K_Roughness.jpg',
+          './textures/jpg/WoodFloor041_2K-JPG/WoodFloor041_2K_Color.jpg',
+        ]
+      }
+
+      const basisTextures = [
         './textures/basis/kodim03.basis',
         './textures/basis/kodim03_uastc.basis',
         './textures/basis/kodim20.basis',
         './textures/basis/kodim26_uastc_1024.basis',
         './textures/basis/largerblock3b4.basis',
+        './textures/ktx/color_grid.basis',
+      ];
 
-        /*'./textures/jpg/Chip001_2K-JPG/Chip001_2K_Color.jpg',
-        './textures/jpg/Chip001_2K-JPG/Chip001_2K_Roughness.jpg',
-        './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_AmbientOcclusion.jpg',
-        './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_Color.jpg',
-        './textures/jpg/PavingStones053_2K-JPG/PavingStones053_2K_Color.jpg',
-        './textures/jpg/PavingStones053_2K-JPG/PavingStones053_2K_Normal.jpg',
-        './textures/jpg/Rock026_2K-JPG/Rock026_2K_Color.jpg',
-        './textures/jpg/Rock026_2K-JPG/Rock026_2K_Normal.jpg',
-        './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Color.jpg',
-        './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Normal.jpg',
-        './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Roughness.jpg',
-        './textures/jpg/Tiles052_2K-JPG/Tiles052_2K_Color.jpg',
-        './textures/jpg/Tiles052_2K-JPG/Tiles052_2K_Roughness.jpg',
-        './textures/jpg/WoodFloor041_2K-JPG/WoodFloor041_2K_Color.jpg',*/
-
+      const ktxTextures = [
         //'./textures/ktx/alpha_simple_basis.ktx2',
         //'./textures/ktx/alpha_simple.basis',
         //'./textures/ktx/camera_camera_BaseColor.ktx2',
@@ -109,11 +143,27 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
         //'./textures/ktx/Iron_Bars_001_normal_uastc_rdo3_zstd5.ktx2',
         //'./textures/ktx/ktx_document_basis.ktx2',
 
-        './textures/ktx/color_grid.basis',
         './textures/ktx/color_grid_basis.ktx2',
         './textures/ktx/FlightHelmet_baseColor_basis.ktx2',
         './textures/ktx/kodim17_basis.ktx2',
         './textures/ktx/rgba-mipmap-reference-basis.ktx2',
+      ];
+
+      const imgTextures = [
+        './textures/jpg/Chip001_2K-JPG/Chip001_2K_Color.jpg',
+        './textures/jpg/Chip001_2K-JPG/Chip001_2K_Roughness.jpg',
+        './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_AmbientOcclusion.jpg',
+        './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_Color.jpg',
+        './textures/jpg/PavingStones053_2K-JPG/PavingStones053_2K_Color.jpg',
+        './textures/jpg/PavingStones053_2K-JPG/PavingStones053_2K_Normal.jpg',
+        './textures/jpg/Rock026_2K-JPG/Rock026_2K_Color.jpg',
+        './textures/jpg/Rock026_2K-JPG/Rock026_2K_Normal.jpg',
+        './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Color.jpg',
+        './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Normal.jpg',
+        './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Roughness.jpg',
+        './textures/jpg/Tiles052_2K-JPG/Tiles052_2K_Color.jpg',
+        './textures/jpg/Tiles052_2K-JPG/Tiles052_2K_Roughness.jpg',
+        './textures/jpg/WoodFloor041_2K-JPG/WoodFloor041_2K_Color.jpg',
       ];
 
       const projectionMat = mat4.create();
@@ -172,13 +222,9 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
       let nextTexturePath = 0;
       function loadNextTexture(tile) {
-        // Every once in a while return a solid color texture, just for fun.
-        /*if (!Math.floor(Math.random() * 15)) {
-          return Promise.resolve(renderer.textureTool.createTextureFromColor(
-              Math.random(), Math.random(), Math.random()));
-        }*/
-        const url = textureNames[nextTexturePath];
-        nextTexturePath = (nextTexturePath + 1) % textureNames.length;
+        const textureSet = textureSets[settings.textureSet];
+        const url = textureSet[nextTexturePath % textureSet.length];
+        nextTexturePath++;
         return renderer.loadTextureFromUrl(tile, url);
       }
 
