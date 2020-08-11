@@ -165,10 +165,16 @@ class WebGPUTextureClient {
   async textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
     if (!this.device) { return null; }
     const mipLevelCount = generateMipmaps ? calculateMipLevels(imageBitmap.width, imageBitmap.height) : 1;
+
+    let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
+    if (generateMipmaps) {
+      usage |= GPUTextureUsage.OUTPUT_ATTACHMENT;
+    }
+
     const textureDescriptor = {
       size: {width: imageBitmap.width, height: imageBitmap.height, depth: 1},
       format,
-      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED,
+      usage,
       mipLevelCount,
     };
     const texture = this.device.createTexture(textureDescriptor);
