@@ -3,6 +3,10 @@
 A low-frills library for loading a large variety of image formats into WebGL or WebGPU textures as efficiently as
 possible.
 
+# WARNING
+
+**This repo is still a work in progress! It's not recommended for use by others at this point.**
+
 # Basic Usage
 
 First, an appropriate instance of `WebTextureTool` must be created. If your application is using WebGL, an instance of
