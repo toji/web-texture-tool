@@ -25,14 +25,14 @@
 importScripts('msc_transcoder_wrapper.js');
 
 // Not particularly fancy, but it works and makes reading C-style structs easier.
-function StructReader(layout) {
+function createStructReader(layout) {
   const entries = Object.entries(layout);
   return function(target, buffer, bufferOffset = 0) {
     const dataView = new DataView(buffer, bufferOffset);
     let offset = 0;
     entries.forEach(([name, type]) => {
       if (typeof type == 'string') {
-        switch(type) {
+        switch (type) {
           case 'uint8': target[name] = dataView.getUint8(offset, true); offset += 1; break;
           case 'int8': target[name] = dataView.getInt8(offset, true); offset += 1; break;
           case 'uint16': target[name] = dataView.getUint16(offset, true); offset += 2; break;
@@ -60,7 +60,7 @@ function StructReader(layout) {
           }
         } else {
           // TODO: Handle mis-aligned offsets
-          switch(type.array) {
+          switch (type.array) {
             case 'uint8':
               target[name] = new Uint8Array(buffer, offset+bufferOffset, length);
               offset += length;
@@ -106,20 +106,20 @@ function StructReader(layout) {
           }
         }
       } else if (type.align) {
-        let alignOffset = (offset % type.align);
+        const alignOffset = (offset % type.align);
         if (alignOffset) {
           offset += type.align - alignOffset;
         }
       }
     });
     return offset;
-  }
+  };
 };
 
 let BasisTranscoder = null;
 
 // eslint-disable-next-line new-cap
-const TRANSCODER_INITIALIZED = MSC_TRANSCODER().then(module => {
+const TRANSCODER_INITIALIZED = MSC_TRANSCODER().then((module) => {
   BasisTranscoder = module;
   module.initTranscoders();
 });
@@ -142,11 +142,11 @@ const WTT_FORMAT_MAP = {
 };
 
 const KTX_IDENTIFIER = [
-  /*«KTX 20»\r\n\x1A\n*/
+  /* «KTX 20»\r\n\x1A\n */
   0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32, 0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A,
 ];
 
-const KtxHeaderReader = StructReader({
+const ktxHeaderReader = createStructReader({
   identifier: {array: 'uint8', length: 12},
   vkFormat: 'uint32',
   typeSize: 'uint32',
@@ -166,14 +166,14 @@ const KtxHeaderReader = StructReader({
   sgdByteOffset: 'uint64',
   sgdByteLength: 'uint64',
 
-  levels: {length: 'levelCount', array: StructReader({
+  levels: {length: 'levelCount', array: createStructReader({
     byteOffset: 'uint64',
     byteLength: 'uint64',
-    uncompressedByteLength: 'uint64'
+    uncompressedByteLength: 'uint64',
   })},
 });
 
-const BasisLZGlobalDataReader = StructReader({
+const basisLZGlobalDataReader = createStructReader({
   endpointCount: 'uint16',
   selectorCount: 'uint16',
   endpointsByteLength: 'uint32',
@@ -182,7 +182,7 @@ const BasisLZGlobalDataReader = StructReader({
   extendedByteLength: 'uint32',
 });
 
-const ImageDescReader = StructReader({
+const imageDescReader = createStructReader({
   imageFlags: 'uint32',
   rgbSliceByteOffset: 'uint32',
   rgbSliceByteLength: 'uint32',
@@ -190,7 +190,7 @@ const ImageDescReader = StructReader({
   alphaSliceByteLength: 'uint32',
 });
 
-const KeyValueReader = StructReader({
+const keyValueReader = createStructReader({
   keyAndValueByteLength: 'uint32',
   keyAndValue: {array: 'uint8', length: 'keyAndValueByteLength'},
   valuePadding: {align: 4},
@@ -198,7 +198,7 @@ const KeyValueReader = StructReader({
 
 class KtxHeader {
   constructor(buffer) {
-    KtxHeaderReader(this, buffer);
+    ktxHeaderReader(this, buffer);
 
     this.valid = true;
     for (let i = 0; i < KTX_IDENTIFIER.length; ++i) {
@@ -210,12 +210,12 @@ class KtxHeader {
 
     // Read key/value data
     this.keyValues = {};
-    const utf8decoder = new TextDecoder("utf-8");
+    const utf8decoder = new TextDecoder('utf-8');
     let offset = this.kvdByteOffset;
     const kvdEndOffset = this.kvdByteOffset + this.kvdByteLength;
-    while(offset != kvdEndOffset) {
+    while (offset != kvdEndOffset) {
       const keyValueData = {};
-      offset += KeyValueReader(keyValueData, buffer, offset);
+      offset += keyValueReader(keyValueData, buffer, offset);
       const nullIndex = keyValueData.keyAndValue.findIndex((element) => element === 0);
       const key = utf8decoder.decode(keyValueData.keyAndValue.slice(0, nullIndex));
       const value = keyValueData.keyAndValue.slice(nullIndex+1, keyValueData.keyAndValueByteLength);
@@ -223,25 +223,25 @@ class KtxHeader {
     }
 
     this.layerPixelDepth = Math.max(this.pixelDepth, 1);
-    for(let i = 1; i < this.levelCount; i++) {
+    for (let i = 1; i < this.levelCount; i++) {
       this.layerPixelDepth += Math.max(this.pixelDepth >> i, 1);
     }
 
     // Total image count for the file.
     this.imageCount = Math.max(this.layerCount, 1) * this.faceCount * this.layerPixelDepth;
-    this.basisTexFormat = this.supercompressionScheme == 1 ? "ETC1S" : null;
+    this.basisTexFormat = this.supercompressionScheme == 1 ? BasisTranscoder.TextureFormat.ETC1S : null;
   }
 }
 
 class BasisLZGlobalData {
   constructor(buffer, header) {
     let offset = header.sgdByteOffset;
-    offset += BasisLZGlobalDataReader(this, buffer, offset);
+    offset += basisLZGlobalDataReader(this, buffer, offset);
 
     this.imageDescs = [];
     for (let i = 0; i < header.imageCount; ++i) {
       const imageDesc = {};
-      offset += ImageDescReader(imageDesc, buffer, offset);
+      offset += imageDescReader(imageDesc, buffer, offset);
       this.imageDescs.push(imageDesc);
     }
 
@@ -266,7 +266,7 @@ class BasisLZGlobalData {
 const alphaFormatPreference = [
   'ETC2_RGBA', 'BC7_RGBA', 'BC3_RGBA', 'ASTC_4x4_RGBA', 'PVRTC1_4_RGBA', 'RGBA32'];
 const opaqueFormatPreference = [
-  'ETC1_RGB', 'BC7_RGBA', 'BC1_RGB', 'ETC2_RGBA', 'ASTC_4x4_RGBA', 'PVRTC1_4_RGB', 'RGB565', 'RGBA32']
+  'ETC1_RGB', 'BC7_RGBA', 'BC1_RGB', 'ETC2_RGBA', 'ASTC_4x4_RGBA', 'PVRTC1_4_RGB', 'RGB565', 'RGBA32'];
 
 function parseFile(id, buffer, supportedFormats, mipmaps) {
   const header = new KtxHeader(buffer);
@@ -277,7 +277,7 @@ function parseFile(id, buffer, supportedFormats, mipmaps) {
 
   const hasAlpha = true;
 
-  if (header.basisTexFormat == "ETC1S") {
+  if (header.basisTexFormat == BasisTranscoder.TextureFormat.ETC1S) {
     const basisLZGlobalData = new BasisLZGlobalData(buffer, header);
 
     // Find a compatible format
@@ -286,7 +286,7 @@ function parseFile(id, buffer, supportedFormats, mipmaps) {
     for (const format of formats) {
       if (supportedFormats[format]) {
         const basisFormat = BasisTranscoder.TranscodeTarget[format];
-        if (BasisTranscoder.isFormatSupported(basisFormat, BasisTranscoder.TextureFormat.ETC1S)) {
+        if (BasisTranscoder.isFormatSupported(basisFormat, header.basisTexFormat)) {
           targetFormat = format;
           break;
         }
@@ -308,8 +308,8 @@ function parseFile(id, buffer, supportedFormats, mipmaps) {
 
 function transcodeEtc1s(id, buffer, targetFormat, header, globalData, hasAlpha) {
   const transcoder = new BasisTranscoder.BasisLzEtc1sImageTranscoder();
-  transcoder.decodePalettes(globalData.endpointCount, globalData.endpointsData,
-                            globalData.selectorCount, globalData.selectorsData);
+  transcoder.decodePalettes(globalData.endpointCount, globalData.endpointsData, globalData.selectorCount,
+      globalData.selectorsData);
   transcoder.decodeTables(globalData.tablesData);
 
   const mipLevels = [];
@@ -317,13 +317,15 @@ function transcodeEtc1s(id, buffer, targetFormat, header, globalData, hasAlpha) 
   let totalTranscodeSize = 0;
 
   const isVideo = false;
-  let curImageIndex = 0;
-  let levelCount = Math.max(header.levelCount, 1);
+
+  const levelCount = Math.max(header.levelCount, 1);
   let levelWidth = header.pixelWidth;
   let levelHeight = Math.max(header.pixelHeight, 1);
   let levelDepth = Math.max(header.pixelDepth, 1);
-  for(let levelIndex = 0; levelIndex < header.levelCount; ++levelIndex) {
-    const imageInfo = new BasisTranscoder.ImageInfo("ETC1S", levelWidth, levelHeight, levelIndex);
+  let curImageIndex = 0;
+  for (let levelIndex = 0; levelIndex < levelCount; ++levelIndex) {
+    const imageInfo = new BasisTranscoder.ImageInfo(
+        BasisTranscoder.TextureFormat.ETC1S, levelWidth, levelHeight, levelIndex);
     const levelHeader = header.levels[levelIndex];
 
     const levelImageCount = Math.max(header.layerCount, 1) * header.faceCount * levelDepth;
@@ -366,20 +368,19 @@ function transcodeEtc1s(id, buffer, targetFormat, header, globalData, hasAlpha) 
 
       mipLevelData.push({
         transcodedImage: result.transcodedImage,
-        imgData
+        imgData,
       });
     }
 
-    levelWidth = Math.max(1, levelWidth >> 1);
-    levelHeight = Math.max(1, levelHeight >> 1);
-    levelDepth = Math.max(1, levelDepth >> 1);
+    levelWidth = Math.max(1, Math.ceil(levelWidth / 2));
+    levelHeight = Math.max(1, Math.ceil(levelHeight / 2));
+    levelDepth = Math.max(1, Math.ceil(levelDepth / 2));
   }
 
   // Copy all the transcoded data into one big array for transfer out of the worker.
   const transcodeData = new Uint8Array(totalTranscodeSize);
-  for(let i = 0; i < mipLevels.length; ++i) {
+  for (let i = 0; i < mipLevels.length; ++i) {
     const mipLevel = mipLevels[i];
-    const levelData = new Uint8Array(transcodeData.buffer, mipLevel.offset, mipLevel.size);
     transcodeData.set(mipLevelData[i].imgData, mipLevel.offset);
 
     // Do not call delete() until data has been uploaded
@@ -412,156 +413,12 @@ function fail(id, errorMsg) {
   });
 }
 
-/**
- * Notifies the main thread when transcoding a texture has failed to load for any reason and closes/deletes the open
- * basisFile.
- *
- * @param {number} id - Identifier for the texture being transcoded.
- * @param {object} basisFile - Open basis file to be closed
- * @param {string} errorMsg - Description of the error that occured
- * @returns {void}
- */
-function basisFileFail(id, basisFile, errorMsg) {
-  fail(id, errorMsg);
-  basisFile.close();
-  basisFile.delete();
-}
-
-// This utility currently only transcodes the first image in the file.
-const IMAGE_INDEX = 0;
-
-/**
- * Transcodes basis universal texture data into the optimal supported format and sends the resulting data back to the
- * main thread.
- *
- * @param {number} id - Identifier for the texture being transcoded.
- * @param {module:External.ArrayBufferView} arrayBuffer - Array buffer containing the data to transcode.
- * @param {Array<module:WebTextureTool.WebTextureFormat>} supportedFormats - Formats which the target API can support.
- * @param {boolean} mipmaps - True if all available mip levels should be transcoded.
- * @returns {void}
- */
-function transcode(id, arrayBuffer, supportedFormats, mipmaps) {
-  const basisData = new Uint8Array(arrayBuffer);
-
-  const basisFile = new BasisFile(basisData);
-  const images = basisFile.getNumImages();
-  const hasAlpha = basisFile.getHasAlpha();
-  let levels = basisFile.getNumLevels(IMAGE_INDEX);
-
-  if (!images || !levels) {
-    basisFileFail(id, basisFile, 'Invalid Basis data');
-    return;
-  }
-
-  if (!basisFile.startTranscoding()) {
-    basisFileFail(id, basisFile, 'startTranscoding failed');
-    return;
-  }
-
-  let basisFormat = undefined;
-  if (hasAlpha) {
-    if (supportedFormats[BASIS_FORMAT.cTFETC2_RGBA]) {
-      basisFormat = BASIS_FORMAT.cTFETC2_RGBA;
-    } else if (supportedFormats[BASIS_FORMAT.cTFBC7_RGBA]) {
-      basisFormat = BASIS_FORMAT.cTFBC7_RGBA;
-    } else if (supportedFormats[BASIS_FORMAT.cTFBC3_RGBA]) {
-      basisFormat = BASIS_FORMAT.cTFBC3_RGBA;
-    } else if (supportedFormats[BASIS_FORMAT.cTFASTC_4x4_RGBA]) {
-      basisFormat = BASIS_FORMAT.cTFASTC_4x4_RGBA;
-    } else if (supportedFormats[BASIS_FORMAT.cTFPVRTC1_4_RGBA]) {
-      basisFormat = BASIS_FORMAT.cTFPVRTC1_4_RGBA;
-    } else {
-      // If we don't support any appropriate compressed formats transcode to
-      // raw pixels. This is something of a last resort, because the GPU
-      // upload will be significantly slower and take a lot more memory, but
-      // at least it prevents you from needing to store a fallback JPG/PNG and
-      // the download size will still likely be smaller.
-      basisFormat = BASIS_FORMAT.cTFRGBA32;
-    }
-  } else {
-    if (supportedFormats[BASIS_FORMAT.cTFETC1_RGB]) {
-      // Should be the highest quality, so use when available.
-      // http://richg42.blogspot.com/2018/05/basis-universal-gpu-texture-format.html
-      basisFormat = BASIS_FORMAT.cTFETC1_RGB;
-    } else if (supportedFormats[BASIS_FORMAT.cTFBC7_RGBA]) {
-      basisFormat = BASIS_FORMAT.cTFBC7_RGBA;
-    } else if (supportedFormats[BASIS_FORMAT.cTFBC1_RGB]) {
-      basisFormat = BASIS_FORMAT.cTFBC1_RGB;
-    } else if (supportedFormats[BASIS_FORMAT.cTFETC2_RGBA]) {
-      basisFormat = BASIS_FORMAT.cTFETC2_RGBA;
-    } else if (supportedFormats[BASIS_FORMAT.cTFASTC_4x4_RGBA]) {
-      basisFormat = BASIS_FORMAT.cTFASTC_4x4_RGBA;
-    } else if (supportedFormats[BASIS_FORMAT.cTFPVRTC1_4_RGB]) {
-      basisFormat = BASIS_FORMAT.cTFPVRTC1_4_RGB;
-    } else if (supportedFormats[BASIS_FORMAT.cTFRGB565]) {
-      // See note on uncompressed transcode above.
-      basisFormat = BASIS_FORMAT.cTFRGB565;
-    } else {
-      // See note on uncompressed transcode above.
-      basisFormat = BASIS_FORMAT.cTFRGBA32;
-    }
-  }
-
-  if (basisFormat === undefined) {
-    basisFileFail(id, basisFile, 'No supported transcode formats');
-    return;
-  }
-
-  const wttFormat = WTT_FORMAT_MAP[basisFormat];
-
-  // If we're not using compressed textures or we've been explicitly instructed to not unpack mipmaps only transcode a
-  // single level.
-  if (wttFormat.uncompressed || !mipmaps) {
-    levels = 1;
-  }
-
-  // Gather information about each mip level to be transcoded.
-  const mipLevels = [];
-  let totalTranscodeSize = 0;
-
-  for (let mipLevel = 0; mipLevel < levels; ++mipLevel) {
-    const transcodeSize = basisFile.getImageTranscodedSizeInBytes(IMAGE_INDEX, mipLevel, basisFormat);
-    mipLevels.push({
-      level: mipLevel,
-      offset: totalTranscodeSize,
-      size: transcodeSize,
-      width: basisFile.getImageWidth(IMAGE_INDEX, mipLevel),
-      height: basisFile.getImageHeight(IMAGE_INDEX, mipLevel),
-    });
-    totalTranscodeSize += transcodeSize;
-  }
-
-  // Allocate a buffer large enough to hold all of the transcoded mip levels at once.
-  const transcodeData = new Uint8Array(totalTranscodeSize);
-
-  // Transcode each mip level into the appropriate section of the overall buffer.
-  for (const mipLevel of mipLevels) {
-    const levelData = new Uint8Array(transcodeData.buffer, mipLevel.offset, mipLevel.size);
-    if (!basisFile.transcodeImage(levelData, IMAGE_INDEX, mipLevel.level, basisFormat, 1, 0)) {
-      basisFileFail(id, basisFile, 'transcodeImage failed');
-      return;
-    }
-  }
-
-  basisFile.close();
-  basisFile.delete();
-
-  // Post the transcoded results back to the main thread.
-  postMessage({
-    id: id,
-    buffer: transcodeData.buffer,
-    format: wttFormat.format,
-    mipLevels: mipLevels,
-  }, [transcodeData.buffer]);
-}
-
 onmessage = (msg) => {
   // Each call to the worker must contain:
   const url = msg.data.url; // The URL of the basis image OR
   const buffer = msg.data.buffer; // An array buffer with the basis image data
   const id = msg.data.id; // A unique ID for the texture
   const mipmaps = msg.data.mipmaps; // Wether or not mipmaps should be unpacked
-  const extension = msg.data.extension; // The file extension to be used (may differ from what's in the URL)
 
   // The formats this device supports
   const supportedFormats = {};
