@@ -20,7 +20,7 @@
  * @module WebGLTextureTool
  */
 
-import {WebTextureTool, WebTextureResult} from './web-texture-tool.js';
+import {WebTextureTool, WebTextureResult} from './web-texture-tool-base.js';
 
 // For access to WebGL enums without a context.
 const GL = WebGLRenderingContext;

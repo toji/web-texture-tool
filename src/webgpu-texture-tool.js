@@ -21,10 +21,10 @@
  * @module WebGPUTextureTool
  */
 
-import {WebTextureTool, WebTextureResult} from './web-texture-tool.js';
+import {WebTextureTool, WebTextureResult} from './web-texture-tool-base.js';
 
 // TODO: Replace shaders with WGSL, which won't require a separate compile
-import glslangModule from 'https://unpkg.com/@webgpu/glslang@0.0.7/web/glslang.js';
+import glslangModule from './third-party/glslang/glslang.js'; // https://unpkg.com/@webgpu/glslang@0.0.7/web/glslang.js
 
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
 

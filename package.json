@@ -6,6 +6,7 @@
   ],
   "description": "Utility to efficiently handle loading of a wide variety of texture formats",
   "devDependencies": {
+    "copyfiles": "^2.3.0",
     "esbuild": "^0.5.12",
     "eslint": "^7.3.0",
     "eslint-config-google": "^0.14.0",
@@ -15,9 +16,10 @@
   "license": "MIT",
   "scripts": {
     "lint": "npx eslint src",
-    "build": "npm run lint && npm run build-min && npm run build-debug",
-    "build-min": "npx esbuild --bundle src/full-lib.js --target=es6 --outdir=build --minify --sourcemap --format=esm",
-    "build-debug": "npx esbuild --bundle src/full-lib.js --target=es6 --outdir=build/debug --format=esm",
+    "build": "npm run lint && npm run build-min && npm run build-basis && npm run build-ktx",
+    "build-min": "npx esbuild --bundle src/web-texture-tool.js --target=es6 --outdir=build --minify --sourcemap --format=esm",
+    "build-basis": "copyfiles --flat src/basis/basis_transcoder.* build/basis && npx esbuild --bundle src/basis/basis-worker.js --target=es6 --outdir=build/basis --minify --sourcemap --format=esm",
+    "build-ktx": "copyfiles --flat src/ktx/msc_transcoder_wrapper.* build/ktx && npx esbuild --bundle src/ktx/ktx-worker.js --target=es6 --outdir=build/ktx --minify --sourcemap --format=esm",
     "build-docs": "jsdoc -c jsdoc.config.json",
     "old-build-docs": "documentation build src/** -f html -o docs"
   }

@@ -13,9 +13,9 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import {WebGPUTextureTool} from '../src/webgpu-texture-tool.js';
+import {WebGPUTextureTool} from '../src/web-texture-tool.js';
 
-import glslangModule from 'https://unpkg.com/@webgpu/glslang@0.0.7/web/glslang.js';
+import glslangModule from '../src/third-party/glslang/glslang.js'; // https://unpkg.com/@webgpu/glslang@0.0.7/web/glslang.js
 
 const SAMPLE_COUNT = 4;
 
