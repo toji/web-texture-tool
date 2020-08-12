@@ -60,14 +60,15 @@ export class WebGPURenderer {
       powerPreference: "high-performance"
     });
     let extensions = [];
-    // TODO: This is the string Chrome is exposing, but it's not the one in the spec.
-    if (this.adapter.extensions.indexOf('textureCompressionBC') != -1) {
+
+    if (this.adapter.extensions.indexOf('texture-compression-bc') != -1) {
+      // This is the extension string the spec says SHOULD be used.
+      extensions.push('texture-compression-bc');
+    } else if (this.adapter.extensions.indexOf('textureCompressionBC') != -1) {
+      // TODO: This is the string Chrome is exposing, but it's not the one in the spec.
       extensions.push('textureCompressionBC');
     }
-    // This is the extension string the spec says SHOULD be used.
-    if (this.adapter.extensions.indexOf('texture-compression-bc') != -1) {
-      extensions.push('texture-compression-bc');
-    }
+
     this.device = await this.adapter.requestDevice({extensions});
     // TODO: This shouldn't be necessary long-term.
     if (!this.device.extensions) {
