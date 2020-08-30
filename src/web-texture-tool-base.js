@@ -24,7 +24,7 @@
  */
 
 import {ImageLoader} from './image-loader.js';
-import {WorkerLoader} from './worker-loader.js';
+import {WorkerLoader} from './workers/worker-loader.js';
 
 /**
  * Texture Format

@@ -22,6 +22,7 @@
  * https://github.com/KhronosGroup/KTX-Software
  */
 
+importScripts('../worker-util.js');
 importScripts('msc_transcoder_wrapper.js');
 
 // Not particularly fancy, but it works and makes reading C-style structs easier.
@@ -116,12 +117,13 @@ function createStructReader(layout) {
   };
 };
 
-let BasisTranscoder = null;
-
 // eslint-disable-next-line new-cap
-const TRANSCODER_INITIALIZED = MSC_TRANSCODER().then((module) => {
-  BasisTranscoder = module;
-  module.initTranscoders();
+const BASIS_TRANSCODER = new Promise((resolve) => {
+  // Turns out this isn't a "real" promise, so we can't use it with await later on. Hence the wrapper promise.
+  MSC_TRANSCODER().then((module) => {
+    module.initTranscoders();
+    resolve(module);
+  });
 });
 
 const WTT_FORMAT_MAP = {
@@ -229,7 +231,7 @@ class KtxHeader {
 
     // Total image count for the file.
     this.imageCount = Math.max(this.layerCount, 1) * this.faceCount * this.layerPixelDepth;
-    this.basisTexFormat = this.supercompressionScheme == 1 ? BasisTranscoder.TextureFormat.ETC1S : null;
+    this.basisTexFormat = this.supercompressionScheme == 1 ? 'ETC1S' : null;
   }
 }
 
@@ -268,23 +270,33 @@ const alphaFormatPreference = [
 const opaqueFormatPreference = [
   'ETC1_RGB', 'BC7_RGBA', 'BC1_RGB', 'ETC2_RGBA', 'ASTC_4x4_RGBA', 'PVRTC1_4_RGB', 'RGB565', 'RGBA32'];
 
-function parseFile(id, buffer, supportedFormats, mipmaps) {
+async function parseFile(buffer, supportedFormats, mipmaps) {
+  const BasisTranscoder = await BASIS_TRANSCODER;
+
+  // The formats this device supports
+  const supportedTranscodeFormats = {};
+  // eslint-disable-next-line guard-for-in
+  for (const targetFormat in WTT_FORMAT_MAP) {
+    const wttFormat = WTT_FORMAT_MAP[targetFormat];
+    supportedTranscodeFormats[targetFormat] = supportedFormats.indexOf(wttFormat.format) > -1;
+  }
+
   const header = new KtxHeader(buffer);
 
   if (!header.valid) {
-    fail(id, 'Invalid KTX header');
+    throw new Error('Invalid KTX header');
   }
 
   const hasAlpha = true;
 
-  if (header.basisTexFormat == BasisTranscoder.TextureFormat.ETC1S) {
+  if (header.basisTexFormat === 'ETC1S') {
     const basisLZGlobalData = new BasisLZGlobalData(buffer, header);
 
     // Find a compatible format
     let targetFormat = undefined;
     const formats = hasAlpha ? alphaFormatPreference : opaqueFormatPreference;
     for (const format of formats) {
-      if (supportedFormats[format]) {
+      if (supportedTranscodeFormats[format]) {
         const basisFormat = BasisTranscoder.TranscodeTarget[format];
         if (BasisTranscoder.isFormatSupported(basisFormat, header.basisTexFormat)) {
           targetFormat = format;
@@ -294,22 +306,19 @@ function parseFile(id, buffer, supportedFormats, mipmaps) {
     }
 
     if (targetFormat === undefined) {
-      fail(id, 'No supported transcode formats');
-      return;
+      throw new Error('No supported transcode formats');
     }
 
-    if (!transcodeEtc1s(id, buffer, targetFormat, header, basisLZGlobalData, hasAlpha)) {
-      return;
-    }
+    return transcodeEtc1s(BasisTranscoder, buffer, targetFormat, header, basisLZGlobalData, hasAlpha);
   } else {
-    fail(id, 'Not a basis ETC1S file.');
+    throw new Error('Only Basis ETC1S files supported currently.');
   }
 }
 
-function transcodeEtc1s(id, buffer, targetFormat, header, globalData, hasAlpha) {
+function transcodeEtc1s(BasisTranscoder, buffer, targetFormat, header, globalData, hasAlpha) {
   const transcoder = new BasisTranscoder.BasisLzEtc1sImageTranscoder();
   transcoder.decodePalettes(globalData.endpointCount, globalData.endpointsData, globalData.selectorCount,
-      globalData.selectorsData);
+    globalData.selectorsData);
   transcoder.decodeTables(globalData.tablesData);
 
   const mipLevels = [];
@@ -350,8 +359,7 @@ function transcodeEtc1s(id, buffer, targetFormat, header, globalData, hasAlpha) 
       const result = transcoder.transcodeImage(basisFormat, levelData, imageInfo, hasAlpha, isVideo);
 
       if ( result.transcodedImage === undefined ) {
-        fail(id, `Image failed to transcode. (Level ${levelIndex}, Image ${levelImage})`);
-        return false;
+        throw new Error(`Image failed to transcode. (Level ${levelIndex}, Image ${levelImage})`);
       }
 
       const imgData = result.transcodedImage.get_typed_memory_view();
@@ -389,72 +397,11 @@ function transcodeEtc1s(id, buffer, targetFormat, header, globalData, hasAlpha) 
   }
 
   // Post the transcoded results back to the main thread.
-  postMessage({
-    id: id,
+  return {
     buffer: transcodeData.buffer,
     format: WTT_FORMAT_MAP[targetFormat].format,
     mipLevels: mipLevels,
-  }, [transcodeData.buffer]);
-
-  return true;
+  };
 }
 
-/**
- * Notifies the main thread when transcoding a texture has failed to load for any reason.
- *
- * @param {number} id - Identifier for the texture being transcoded.
- * @param {string} errorMsg - Description of the error that occured
- * @returns {void}
- */
-function fail(id, errorMsg) {
-  postMessage({
-    id: id,
-    error: errorMsg,
-  });
-}
-
-onmessage = (msg) => {
-  // Each call to the worker must contain:
-  const url = msg.data.url; // The URL of the basis image OR
-  const buffer = msg.data.buffer; // An array buffer with the basis image data
-  const id = msg.data.id; // A unique ID for the texture
-  const mipmaps = msg.data.mipmaps; // Wether or not mipmaps should be unpacked
-
-  // The formats this device supports
-  const supportedFormats = {};
-  // eslint-disable-next-line guard-for-in
-  for (const targetFormat in WTT_FORMAT_MAP) {
-    const wttFormat = WTT_FORMAT_MAP[targetFormat];
-    supportedFormats[targetFormat] = msg.data.supportedFormats.indexOf(wttFormat.format) > -1;
-  }
-
-  if (url) {
-    // Make the call to fetch the basis texture data
-    fetch(url).then(function(response) {
-      if (response.ok) {
-        response.arrayBuffer().then((arrayBuffer) => {
-          if (BasisTranscoder) {
-            parseFile(id, arrayBuffer, supportedFormats, mipmaps);
-          } else {
-            TRANSCODER_INITIALIZED.then(() => {
-              parseFile(id, arrayBuffer, supportedFormats, mipmaps);
-            });
-          }
-        });
-      } else {
-        fail(id, `Fetch failed: ${response.status}, ${response.statusText}`);
-      }
-    });
-  } else if (buffer) {
-    parseFile(id, arrayBuffer, supportedFormats, mipmaps);
-    if (BasisTranscoder) {
-      parseFile(id, buffer, supportedFormats, mipmaps);
-    } else {
-      TRANSCODER_INITIALIZED.then(() => {
-        parseFile(id, buffer, supportedFormats, mipmaps);
-      });
-    }
-  } else {
-    fail(id, `No url or buffer specified`);
-  }
-};
+onmessage = CreateTextureMessageHandler(parseFile);
