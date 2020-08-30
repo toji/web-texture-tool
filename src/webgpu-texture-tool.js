@@ -133,6 +133,9 @@ class WebGPUTextureClient {
           entryPoint: 'main',
         },
         primitiveTopology: 'triangle-strip',
+        vertexState: {
+          indexFormat: 'uint32'
+        },
         colorStates: [{format: 'rgba8unorm'}],
       });
 

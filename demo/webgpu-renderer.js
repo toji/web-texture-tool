@@ -111,6 +111,9 @@ export class WebGPURenderer {
         entryPoint: 'main'
       },
       primitiveTopology: 'triangle-strip',
+      vertexState: {
+        indexFormat: 'uint32'
+      },
       colorStates: [{
         format: this.swapChainFormat,
       }],

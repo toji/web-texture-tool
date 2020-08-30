@@ -46,6 +46,7 @@ const WebTextureFormat = [
   'etc1-rgb-unorm',
   'etc2-rgba8unorm',
   'bc1-rgb-unorm',
+  'bc2-rgba-unorm',
   'astc-4x4-rgba-unorm',
   'pvrtc1-4bpp-rgb-unorm',
   'pvrtc1-4bpp-rgba-unorm',

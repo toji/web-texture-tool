@@ -18,6 +18,8 @@
  * @module DDSLoader
  */
 
+importScripts('../worker-util.js');
+
 // All values and structures referenced from:
 // http://msdn.microsoft.com/en-us/library/bb943991.aspx/
 const DDS_MAGIC = 0x20534444;
@@ -76,6 +78,7 @@ function int32ToFourCC(value) {
 const FOURCC_DXT1 = fourCCToInt32('DXT1');
 const FOURCC_DXT3 = fourCCToInt32('DXT3');
 const FOURCC_DXT5 = fourCCToInt32('DXT5');
+const FOURCC_ETC1 = fourCCToInt32( "ETC1" );
 
 const headerLengthInt = 31; // The header length in 32 bit ints
 
@@ -91,6 +94,11 @@ const off_mipmapCount = 7;
 
 const off_pfFlags = 20;
 const off_pfFourCC = 21;
+const off_RGBBitCount = 22;
+const off_RBitMask = 23;
+const off_GBitMask = 24;
+const off_BBitMask = 25;
+const off_ABitMask = 26;
 
 // Little reminder for myself where the above values come from
 /* DDS_PIXELFORMAT {
@@ -168,7 +176,7 @@ function dxtToRgb565(src, src16Offset, width, height) {
       g1 = c[1] & 0x7e0;
       // Interpolate between c0 and c1 to get c2 and c3.
       // Note that we approximate 1/3 as 3/8 and 2/3 as 5/8 for
-      // speed.  This also appears to be what the hardware DXT
+      // speed. This also appears to be what the hardware DXT
       // decoder in many GPUs does :)
       c[2] = (((5 * rb0 + 3 * rb1) >> 3) & 0xf81f) |
                 (((5 * g0 + 3 * g1) >> 3) & 0x7e0);
@@ -200,3 +208,152 @@ function dxtToRgb565(src, src16Offset, width, height) {
   }
   return dst;
 }
+
+function bgraToRgba8(buffer, dataOffset, width, height) {
+  const byteLength = width * height * 4;
+  const srcBuffer = new Uint8Array(buffer, dataOffset, byteLength);
+  const dstArray = new Uint8Array(byteLength);
+
+  let dst = 0;
+  let src = 0;
+  while (src < byteLength) {
+    const b = srcBuffer[src++];
+    const g = srcBuffer[src++];
+    const r = srcBuffer[src++];
+    const a = srcBuffer[src++];
+    dstArray[dst++] = r;
+    dstArray[dst++] = g;
+    dstArray[dst++] = b;
+    dstArray[dst++] = a;
+  }
+
+  return dstArray;
+}
+
+/**
+ * Parses a DDS file from the given arrayBuffer and uploads it into the currently bound texture
+ *
+ * @param {WebGLRenderingContext} gl WebGL rendering context
+ * @param {WebGLCompressedTextureS3TC} ext WEBGL_compressed_texture_s3tc extension object
+ * @param {TypedArray} buffer Array Buffer containing the DDS files data
+ * @param {boolean} [loadMipmaps] If false only the top mipmap level will be loaded, otherwise all available mipmaps will be uploaded
+ *
+ * @returns {number} Number of mipmaps uploaded, 0 if there was an error
+ */
+function parseFile(buffer, supportedFormats, mipmaps) {
+  const header = new Int32Array(buffer, 0, headerLengthInt);
+
+  if(header[off_magic] != DDS_MAGIC) {
+    throw new Error('Invalid magic number in DDS header');
+  }
+
+  if(!header[off_pfFlags] & DDPF_FOURCC) {
+    throw new Error('Unsupported format, must contain a FourCC code');
+  }
+
+  const fourCC = header[off_pfFourCC];
+  let blockBytes = 0;
+  let internalFormat = 'unknown';
+  switch(fourCC) {
+    case FOURCC_DXT1:
+      blockBytes = 8;
+      internalFormat = 'bc1-rgb-unorm';
+      break;
+
+    case FOURCC_DXT3:
+      blockBytes = 16;
+      internalFormat = 'bc2-rgba-unorm';
+      break;
+
+    case FOURCC_DXT5:
+      blockBytes = 16;
+      internalFormat = 'bc3-rgba-unorm';
+      break;
+
+    case FOURCC_ETC1:
+      blockBytes = 8;
+      internalFormat = 'etc1-rgb-unorm';
+      break;
+
+    default:
+      if (header[off_RGBBitCount] === 32
+        && header[off_RBitMask] & 0xff0000
+        && header[off_GBitMask] & 0xff00
+        && header[off_BBitMask] & 0xff
+        && header[off_ABitMask] & 0xff000000) {
+        internalFormat = 'rgba8unorm';
+      }
+  }
+
+  if (supportedFormats.indexOf(internalFormat) == -1) {
+    if (internalFormat == 'bc1-rgb-unorm' && supportedFormats.indexOf('rgb565unorm') != -1) {
+      // Allow a fallback to rgb565 if it's bc1 and we don't support it natively.
+      internalFormat = 'rgb565unorm';
+    } else {
+      throw new Error(`Unsupported texture format: ${int32ToFourCC(fourCC)}`);
+    }
+  }
+
+  let width = header[off_width];
+  let height = header[off_height];
+  let dataOffset = header[off_size] + 4;
+
+  if(internalFormat == 'rgb565unorm') {
+    const rgb565Data = dxtToRgb565(new Uint16Array(buffer), dataOffset / 2, width, height);
+    return {
+      buffer: rgb565Data.buffer,
+      format: internalFormat,
+      mipLevels: [{
+        level: 0,
+        width,
+        height,
+        offset: 0,
+        size: rgb565Data.byteLength
+      }],
+    };
+  } else if (internalFormat == 'rgba8unorm') {
+    const rgbaData = bgraToRgba8(buffer, dataOffset, width, height);
+    return {
+      buffer: rgbaData.buffer,
+      format: internalFormat,
+      mipLevels: [{
+        level: 0,
+        width,
+        height,
+        offset: 0,
+        size: rgbaData.byteLength
+      }],
+    };
+  }
+
+  let mipmapCount = 1;
+  if(header[off_flags] & DDSD_MIPMAPCOUNT && mipmaps !== false) {
+      mipmapCount = Math.max(1, header[off_mipmapCount]);
+  }
+
+  const mipLevels = [];
+  for(let level = 0; level < mipmapCount; ++level) {
+    const byteLength = blockBytes ? Math.max(4, width)/4 * Math.max(4, height)/4 * blockBytes :
+                                    width * height * 4;
+    mipLevels.push({
+      level,
+      width,
+      height,
+      offset: dataOffset,
+      size: byteLength,
+    });
+    dataOffset += byteLength;
+    width *= 0.5;
+    height *= 0.5;
+  }
+
+  return {
+    buffer,
+    format: internalFormat,
+    mipLevels: mipLevels,
+  };
+
+  //{mipmaps: mipmapCount, width: texWidth, height: texHeight };
+}
+
+onmessage = CreateTextureMessageHandler(parseFile);
