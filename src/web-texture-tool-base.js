@@ -34,6 +34,7 @@ import {WorkerLoader} from './workers/worker-loader.js';
 const WebTextureFormat = [
   // Uncompressed formats
   'rgba8unorm',
+  'bgra8unorm',
 
   // Compressed formats
   'bc3-rgba-unorm',

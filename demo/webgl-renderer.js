@@ -49,6 +49,13 @@ const fragmentSrc = `
   }
 `;
 
+const identity = new Float32Array([
+  1, 0, 0, 0,
+  0, 1, 0, 0,
+  0, 0, 1, 0,
+  0, 0, 0, 1
+]);
+
 export class WebGLRenderer {
   constructor(useWebGL2 = true) {
     this.canvas = document.createElement('canvas');
@@ -65,6 +72,8 @@ export class WebGLRenderer {
     this.textureTool = new WebGLTextureTool(gl);
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     this.program = new Util.Program(this.gl, vertexSrc, fragmentSrc, attributes);
 
@@ -93,6 +102,8 @@ export class WebGLRenderer {
     gl.vertexAttribPointer(attributes.texCoord, 2, gl.FLOAT, false, 20, 12);
 
     gl.bindVertexArray(null);
+
+    this.checkerboard = await this.textureTool.loadTextureFromUrl('textures/checkerboard.png');
   }
 
   onCanvasResize(width, height) {
@@ -128,12 +139,19 @@ export class WebGLRenderer {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     this.program.use();
-    gl.uniformMatrix4fv(this.program.uniform.projection, false, projectionMat);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(this.program.uniform.baseColor, 0);
 
     gl.bindVertexArray(this.vao);
+
+    // Draw the background
+    gl.uniformMatrix4fv(this.program.uniform.projection, false, identity);
+    gl.uniformMatrix4fv(this.program.uniform.modelView, false, identity);
+    gl.bindTexture(gl.TEXTURE_2D, this.checkerboard.texture);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+    gl.uniformMatrix4fv(this.program.uniform.projection, false, projectionMat);
 
     for (let tile of tiles) {
       if (tile.texture) {

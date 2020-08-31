@@ -45,6 +45,7 @@ const EXTENSION_FORMATS = {
 
 const FORMAT_BLOCK_SIZE = {
   'rgba8unorm': {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: true},
+  'bgra8unorm': {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: true},
   'bc1-rgba-unorm': {byteLength: 8, width: 4, height: 4},
   'bc2-rgba-unorm': {byteLength: 16, width: 4, height: 4},
   'bc3-rgba-unorm': {byteLength: 16, width: 4, height: 4},
@@ -78,10 +79,12 @@ class WebGPUTextureClient {
 
     this.uncompressedFormatList = [
       'rgba8unorm',
+      'bgra8unorm',
     ];
 
     this.supportedFormatList = [
       'rgba8unorm',
+      'bgra8unorm',
     ];
 
     // Add any other formats that are exposed by extensions.

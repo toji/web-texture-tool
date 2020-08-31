@@ -78,7 +78,7 @@ function int32ToFourCC(value) {
 const FOURCC_DXT1 = fourCCToInt32('DXT1');
 const FOURCC_DXT3 = fourCCToInt32('DXT3');
 const FOURCC_DXT5 = fourCCToInt32('DXT5');
-const FOURCC_ETC1 = fourCCToInt32( "ETC1" );
+const FOURCC_ETC1 = fourCCToInt32('ETC1');
 
 const headerLengthInt = 31; // The header length in 32 bit ints
 
@@ -209,25 +209,19 @@ function dxtToRgb565(src, src16Offset, width, height) {
   return dst;
 }
 
-function bgraToRgba8(buffer, dataOffset, width, height) {
-  const byteLength = width * height * 4;
-  const srcBuffer = new Uint8Array(buffer, dataOffset, byteLength);
-  const dstArray = new Uint8Array(byteLength);
+function bgraToRgba(buffer, dataOffset, width, height) {
+  const pixelCount = width * height;
+  const src = new Uint32Array(buffer, dataOffset, pixelCount);
+  const dst = new Uint32Array(pixelCount);
 
-  let dst = 0;
-  let src = 0;
-  while (src < byteLength) {
-    const b = srcBuffer[src++];
-    const g = srcBuffer[src++];
-    const r = srcBuffer[src++];
-    const a = srcBuffer[src++];
-    dstArray[dst++] = r;
-    dstArray[dst++] = g;
-    dstArray[dst++] = b;
-    dstArray[dst++] = a;
+  for (let i = 0; i < pixelCount; ++i) {
+    const bgra = src[i];
+    dst[i] = (bgra & 0xff00ff00) +
+            ((bgra & 0xff0000) >> 16) +
+            ((bgra & 0xff) << 16);
   }
 
-  return dstArray;
+  return dst;
 }
 
 /**
@@ -253,6 +247,7 @@ function parseFile(buffer, supportedFormats, mipmaps) {
 
   const fourCC = header[off_pfFourCC];
   let blockBytes = 0;
+  let bytesPerPixel = 0;
   let internalFormat = 'unknown';
   switch(fourCC) {
     case FOURCC_DXT1:
@@ -275,22 +270,35 @@ function parseFile(buffer, supportedFormats, mipmaps) {
       internalFormat = 'etc1-rgb-unorm';
       break;
 
-    default:
-      if (header[off_RGBBitCount] === 32
-        && header[off_RBitMask] & 0xff0000
-        && header[off_GBitMask] & 0xff00
-        && header[off_BBitMask] & 0xff
-        && header[off_ABitMask] & 0xff000000) {
-        internalFormat = 'rgba8unorm';
-      }
-  }
+    default: {
+      const bitCount = header[off_RGBBitCount];
+      const rBitMask = header[off_RBitMask];
+      const gBitMask = header[off_GBitMask];
+      const bBitMask = header[off_BBitMask];
+      const aBitMask = header[off_ABitMask];
 
-  if (supportedFormats.indexOf(internalFormat) == -1) {
-    if (internalFormat == 'bc1-rgb-unorm' && supportedFormats.indexOf('rgb565unorm') != -1) {
-      // Allow a fallback to rgb565 if it's bc1 and we don't support it natively.
-      internalFormat = 'rgb565unorm';
-    } else {
-      throw new Error(`Unsupported texture format: ${int32ToFourCC(fourCC)}`);
+      if (bitCount === 32) {
+        if (rBitMask & 0xff &&
+            gBitMask & 0xff00 &&
+            bBitMask & 0xff0000) {
+          internalFormat = 'rgba8unorm';
+          bytesPerPixel = 4;
+        } else if (rBitMask & 0xff0000 &&
+                   gBitMask & 0xff00 &&
+                   bBitMask & 0xff) {
+          internalFormat = 'bgra8unorm';
+          bytesPerPixel = 4;
+        }
+      } else if (bitCount === 24) {
+        if (rBitMask & 0xff0000 &&
+            gBitMask & 0xff00 &&
+            bBitMask & 0xff) {
+          internalFormat = 'rgb8unorm';
+          bytesPerPixel = 3;
+        }
+      }
+
+      // TODO: A lot more possible formats to cover here.
     }
   }
 
@@ -298,30 +306,34 @@ function parseFile(buffer, supportedFormats, mipmaps) {
   let height = header[off_height];
   let dataOffset = header[off_size] + 4;
 
-  if(internalFormat == 'rgb565unorm') {
-    const rgb565Data = dxtToRgb565(new Uint16Array(buffer), dataOffset / 2, width, height);
+  if (supportedFormats.indexOf(internalFormat) == -1) {
+    if (internalFormat === 'bc1-rgb-unorm' && supportedFormats.indexOf('rgb565unorm') != -1) {
+      // Allow a fallback to rgb565 if it's bc1 and we don't support it natively.
+      internalFormat = 'rgb565unorm';
+      bytesPerPixel = 2;
+      buffer = dxtToRgb565(new Uint16Array(buffer), dataOffset / 2, width, height).buffer;
+      dataOffset = 0;
+    } else if (internalFormat == 'bgra8unorm') {
+      // Transcode from BGRA to RGBA if BGRA isn't natively supported.
+      internalFormat = 'rgba8unorm';
+      buffer = bgraToRgba(buffer, dataOffset, width, height).buffer;
+      dataOffset = 0;
+    } else {
+      throw new Error(`Unsupported                                                                                                                                                                         
+       texture format: ${int32ToFourCC(fourCC)} ${internalFormat}`);
+    }
+  }
+
+  if(blockBytes == 0) {
     return {
-      buffer: rgb565Data.buffer,
+      buffer: buffer,
       format: internalFormat,
       mipLevels: [{
         level: 0,
         width,
         height,
-        offset: 0,
-        size: rgb565Data.byteLength
-      }],
-    };
-  } else if (internalFormat == 'rgba8unorm') {
-    const rgbaData = bgraToRgba8(buffer, dataOffset, width, height);
-    return {
-      buffer: rgbaData.buffer,
-      format: internalFormat,
-      mipLevels: [{
-        level: 0,
-        width,
-        height,
-        offset: 0,
-        size: rgbaData.byteLength
+        offset: dataOffset,
+        size: width * height * bytesPerPixel
       }],
     };
   }

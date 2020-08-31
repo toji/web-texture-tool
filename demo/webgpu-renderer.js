@@ -116,6 +116,10 @@ export class WebGPURenderer {
       },
       colorStates: [{
         format: this.swapChainFormat,
+        colorBlend: {
+          srcFactor: 'src-alpha',
+          dstFactor: 'one-minus-src-alpha',
+        }
       }],
       sampleCount: SAMPLE_COUNT,
     });
@@ -136,6 +140,8 @@ export class WebGPURenderer {
         },
       }],
     });
+
+    this.checkerboard = await this.textureTool.loadTextureFromUrl('textures/checkerboard.png');
   }
 
   onCanvasResize(width, height) {
@@ -207,28 +213,6 @@ export class WebGPURenderer {
 
       return result;
     });
-
-    /*const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
-
-    const bindGroup = this.device.createBindGroup({
-      layout: this.tilePipeline.getBindGroupLayout(1),
-      entries: [{
-        binding: 0,
-        resource: {
-          buffer: tile.uniformBuffer,
-        },
-      },{
-        binding: 1,
-        resource: this.tileSampler,
-      }, {
-        binding: 2,
-        resource: result.texture.createView(),
-      }],
-    });
-
-    tile.bindGroup = bindGroup;
-    tile.texture = result.texture;
-    return Promise.resolve(result);*/
   }
 
   onFrame(projectionMat, tiles) {
