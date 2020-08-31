@@ -15,7 +15,7 @@
 
 /**
  * @file Web Worker for loading/transcoding DirectDraw Surface (DDS) texture files
- * @module DDSLoader
+ * @module DDSWorker
  */
 
 importScripts('./worker-util.js');
@@ -319,7 +319,7 @@ function parseFile(buffer, supportedFormats, mipmaps) {
       buffer = bgraToRgba(buffer, dataOffset, width, height).buffer;
       dataOffset = 0;
     } else {
-      throw new Error(`Unsupported                                                                                                                                                                         
+      throw new Error(`Unsupported
        texture format: ${int32ToFourCC(fourCC)} ${internalFormat}`);
     }
   }

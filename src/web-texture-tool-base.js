@@ -128,7 +128,6 @@ const EXTENSION_HANDLERS = [
   new ExtensionHandler(['basis'], () => new WorkerLoader('basis/basis-worker.js')),
   new ExtensionHandler(['ktx2'], () => new WorkerLoader('ktx/ktx-worker.js')),
   new ExtensionHandler(['dds'], () => new WorkerLoader('dds-worker.js')),
-  new ExtensionHandler(['tga'], () => new WorkerLoader('tga-worker.js')),
 ];
 
 const CLIENT = Symbol('wtt/WebTextureClient');
