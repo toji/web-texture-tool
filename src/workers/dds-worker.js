@@ -18,7 +18,7 @@
  * @module DDSLoader
  */
 
-importScripts('../worker-util.js');
+importScripts('./worker-util.js');
 
 // All values and structures referenced from:
 // http://msdn.microsoft.com/en-us/library/bb943991.aspx/
@@ -364,8 +364,6 @@ function parseFile(buffer, supportedFormats, mipmaps) {
     format: internalFormat,
     mipLevels: mipLevels,
   };
-
-  //{mipmaps: mipmapCount, width: texWidth, height: texHeight };
 }
 
 onmessage = CreateTextureMessageHandler(parseFile);

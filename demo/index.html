@@ -67,7 +67,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
       const gui = new dat.GUI();
 
       gui.add(settings, "renderer", {WebGL2: 'WebGL2', WebGPU: 'WebGPU'}).onChange(updateRenderer);
-      gui.add(settings, "textureSet", {Basis: 'basis', KTX2: 'ktx', Jpeg: 'jpg', DDS: 'dds'});
+      gui.add(settings, "textureSet", {Basis: 'basis', KTX2: 'ktx', Jpeg: 'jpg', DDS: 'dds', TGA: 'tga'});
       gui.add(settings, "compressedFormats").onChange(() => {
         if (renderer) {
           renderer.textureTool.allowCompressedFormats = settings.compressedFormats;
@@ -131,6 +131,9 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           './textures/dds/shannon-dxt1.dds',
           './textures/dds/shannon-dxt3.dds',
           './textures/dds/shannon-dxt5.dds',
+        ],
+        tga: [
+          './textures/tga/test.tga',
         ]
       };
 
