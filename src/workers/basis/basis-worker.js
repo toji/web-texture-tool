@@ -117,7 +117,7 @@ async function transcodeBasisFile(arrayBuffer, supportedFormats, mipmaps) {
     if (!images || !levels) {
       throw new Error('Invalid Basis data');
     }
-  
+
     if (!basisFile.startTranscoding()) {
       throw new Error('startTranscoding failed');
     }
@@ -178,39 +178,32 @@ async function transcodeBasisFile(arrayBuffer, supportedFormats, mipmaps) {
       levels = 1;
     }
 
-    // Gather information about each mip level to be transcoded.
-    const mipLevels = [];
-    let totalTranscodeSize = 0;
+    const textureData = new WorkerTextureData(
+      wttFormat.format,
+      basisFile.getImageWidth(0, 0),
+      basisFile.getImageHeight(0, 0),
+    );
 
-    for (let mipLevel = 0; mipLevel < levels; ++mipLevel) {
-      const transcodeSize = basisFile.getImageTranscodedSizeInBytes(IMAGE_INDEX, mipLevel, basisFormat);
-      mipLevels.push({
-        level: mipLevel,
-        offset: totalTranscodeSize,
-        size: transcodeSize,
-        width: basisFile.getImageWidth(IMAGE_INDEX, mipLevel),
-        height: basisFile.getImageHeight(IMAGE_INDEX, mipLevel),
-      });
-      totalTranscodeSize += transcodeSize;
-    }
+    for (let i = 0; i < images; ++i) {
+      const textureImage = textureData.getImage(i);
 
-    // Allocate a buffer large enough to hold all of the transcoded mip levels at once.
-    const transcodeData = new Uint8Array(totalTranscodeSize);
+      // Transcode each mip level.
+      for (let mipLevel = 0; mipLevel < levels; ++mipLevel) {
+        const transcodeSize = basisFile.getImageTranscodedSizeInBytes(i, mipLevel, basisFormat);
+        const levelData = new Uint8Array(transcodeSize);
+        if (!basisFile.transcodeImage(levelData, i, mipLevel, basisFormat, 1, 0)) {
+          throw new Error('transcodeImage failed');
+        }
 
-    // Transcode each mip level into the appropriate section of the overall buffer.
-    for (const mipLevel of mipLevels) {
-      const levelData = new Uint8Array(transcodeData.buffer, mipLevel.offset, mipLevel.size);
-      if (!basisFile.transcodeImage(levelData, IMAGE_INDEX, mipLevel.level, basisFormat, 1, 0)) {
-        throw new Error('transcodeImage failed');
+        textureImage.setMipLevel(mipLevel, levelData, {
+          width: basisFile.getImageWidth(i, mipLevel),
+          height: basisFile.getImageHeight(i, mipLevel)
+        });
       }
     }
 
     // Post the transcoded results back to the main thread.
-    return {
-      buffer: transcodeData.buffer,
-      format: wttFormat.format,
-      mipLevels: mipLevels,
-    };
+    return textureData;
   } finally {
     // Make sure we close the basisFile
     basisFile.close();

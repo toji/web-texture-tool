@@ -52,21 +52,101 @@ function CreateTextureMessageHandler(onBufferReady) {
     }
 
     try {
+      // Should return a WorkerTextureData instance
       const result = await onBufferReady(
         buffer, // An array buffer with the file data
         msg.data.supportedFormats, // The formats this device supports
         msg.data.mipmaps); // Wether or not mipmaps should be unpacked
 
-      postMessage({
-        id,
-        buffer: result.buffer,
-        format: result.format,
-        mipLevels: result.mipLevels,
-      }, [result.buffer]);
+      result.transfer(id);
     } catch(err) {
       TextureLoadFail(id, err.message);
     }
   };
+}
+
+class WorkerTextureData {
+  constructor(format, width, height, imageData = null, imageDataOptions = {}) {
+    this.format = format;
+    this.width = width;
+    this.height = height;
+
+    this.images = [];
+    this.bufferSet = new Set();
+
+    // Optionally, data for the first image's first mip level can be passed to the constructor to handle simple cases.
+    if (imageData) {
+      this.getImage(0).setMipLevel(0, imageData, imageDataOptions);
+    }
+  }
+
+  getImage(index) {
+    let image = this.images[index];
+    if (!image) {
+      image = new WorkerTextureImageData(this);
+      this.images[index] = image;
+    }
+    return image;
+  }
+
+  transfer(id) {
+    let imageList = [];
+    for (const image of this.images) {
+      imageList.push({
+        mipLevels: image.mipLevels
+      });
+    }
+    postMessage({
+      id,
+      format: this.format,
+      width: this.width,
+      height: this.height,
+      images: imageList,
+    }, this.bufferSet.values());
+  }
+}
+
+class WorkerTextureImageData {
+  constructor(textureResult) {
+    this.textureResult = textureResult;
+    this.mipLevels = [];
+  }
+
+  setMipLevel(level, bufferOrTypedArray, options = {}) {
+    if (this.mipLevels[level] != undefined) {
+      throw new Error('Cannot define an image mip level twice.');
+    }
+
+    const width = options.width || this.textureResult.width >> level;
+    const height = options.height || this.textureResult.height >> level;
+    let byteOffset = options.byteOffset || 0;
+    let byteLength = options.byteLength || 0;
+
+    let buffer;
+    if (bufferOrTypedArray instanceof ArrayBuffer) {
+      buffer = bufferOrTypedArray;
+      if (!byteLength) {
+        byteLength = buffer.byteLength - byteOffset;
+      }
+    } else {
+      buffer = bufferOrTypedArray.buffer;
+      if (!byteLength) {
+        byteLength = bufferOrTypedArray.byteLength - byteOffset;
+      }
+      byteOffset += bufferOrTypedArray.byteOffset;
+    }
+
+    this.textureResult.bufferSet.add(buffer);
+
+    this.mipLevels[level] = {
+      level,
+      width,
+      height,
+      buffer,
+      byteOffset,
+      byteLength,
+    };
+  }
 }
 
 // Not particularly fancy, but it works and makes reading C-style structs easier.

@@ -40,10 +40,17 @@ const WebTextureFormat = [
   'bc3-rgba-unorm',
   'bc7-rgba-unorm',
 
-  // Not official WebGPU texture format strings, but formats that WebGL supports.
+  // Below here the format names are not official WebGPU texture format strings, but formats that WebGL supports.
+
+  // 32 Bit uncompressed
   'rgb8unorm',
+
+  // 16 Bit Uncompressed
   'rgb565unorm',
   'rgba4unorm',
+  'rgba5551unorm',
+
+  // Compressed Formats
   'etc1-rgb-unorm',
   'etc2-rgba8unorm',
   'bc1-rgb-unorm',
@@ -90,6 +97,70 @@ export class WebTextureResult {
     this.depth = depth;
     this.mipLevels = mipLevels;
     this.format = format;
+  }
+}
+
+export class WebTextureData {
+  constructor(format, width, height, imageData = null, imageDataOptions = {}) {
+    this.format = format;
+    this.width = width;
+    this.height = height;
+    this.images = [];
+
+    // Optionally, data for the first image's first mip level can be passed to the constructor to handle simple cases.
+    if (imageData) {
+      this.getImage(0).setMipLevel(0, imageData, imageDataOptions);
+    }
+  }
+
+  getImage(index) {
+    let image = this.images[index];
+    if (!image) {
+      image = new WebTextureImageData(this);
+      this.images[index] = image;
+    }
+    return image;
+  }
+}
+
+class WebTextureImageData {
+  constructor(textureResult) {
+    this.textureResult = textureResult;
+    this.mipLevels = [];
+  }
+
+  setMipLevel(level, bufferOrTypedArray, options = {}) {
+    if (this.mipLevels[level] != undefined) {
+      throw new Error('Cannot define an image mip level twice.');
+    }
+
+    const width = options.width || this.textureResult.width >> level;
+    const height = options.height || this.textureResult.height >> level;
+    let byteOffset = options.byteOffset || 0;
+    let byteLength = options.byteLength || 0;
+
+    let buffer;
+    if (bufferOrTypedArray instanceof ArrayBuffer) {
+      buffer = bufferOrTypedArray;
+      if (!byteLength) {
+        byteLength = buffer.byteLength - byteOffset;
+      }
+    } else {
+      buffer = bufferOrTypedArray.buffer;
+      if (!byteLength) {
+        byteLength = bufferOrTypedArray.byteLength - byteOffset;
+      }
+      byteOffset += bufferOrTypedArray.byteOffset;
+    }
+
+    this.mipLevels[level] = {
+      level,
+      width,
+      height,
+      buffer,
+      byteOffset,
+      byteLength,
+    };
   }
 }
 
@@ -219,8 +290,7 @@ export class WebTextureTool {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
     const data = new Uint8Array([r * 255, g * 255, b * 255, a * 255]);
-    return this[CLIENT].textureFromLevelData(
-        data, [{level: 0, width: 1, height: 1, offset: 0, size: 4}], 'rgba8unorm', false);
+    return this[CLIENT].textureFromTextureData(new WebTextureData('rgba8unorm', 1, 1, data), false);
   }
 
   /**

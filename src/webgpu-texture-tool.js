@@ -221,35 +221,29 @@ class WebGPUTextureClient {
   /**
    * Creates a GPUTexture from the given texture level data.
    *
-   * @param {ArrayBuffer} buffer - Buffer containing all data for the mip levels.
-   * @param {Array<module:WebTextureTool.WebTextureLevelData>} mipLevels - An array of data and descriptions for each
+   * @param {module:WebTextureTool.WebTextureData} textureData - Object containing data and layout for each image and
    * mip level of the texture.
-   * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the data is provided in. May be a
-   * compressed format.
-   * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given.
+   * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given
+   * and the texture format is renderable.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  textureFromLevelData(buffer, mipLevels, format, generateMipmaps) {
+  textureFromTextureData(textureData, generateMipmaps) {
     if (!this.device) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
 
-    const blockSize = FORMAT_BLOCK_SIZE[format];
+    const blockSize = FORMAT_BLOCK_SIZE[textureData.format];
     if (!blockSize) {
-      throw new Error(`No block size information for format "${format}"`);
+      throw new Error(`No block size information for format "${textureData.format}"`);
     }
 
     generateMipmaps = generateMipmaps && blockSize.canGenerateMipmaps;
 
-    const topLevel = mipLevels[0];
-    for (const mipLevel of mipLevels) {
-      if (mipLevel.level < topLevel.level) {
-        topLevel = mipLevel;
-      }
-    }
+    // TODO: For the moment only handle first image.
+    const textureImage = textureData.images[0];
 
-    const mipLevelCount = mipLevels.length > 1 ? mipLevels.length :
-                            (generateMipmaps ? calculateMipLevels(topLevel.width, topLevel.height) : 1);
+    const mipLevelCount = textureImage.mipLevels.length > 1 ? textureImage.mipLevels.length :
+                            (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
 
     let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
     if (generateMipmaps) {
@@ -257,8 +251,8 @@ class WebGPUTextureClient {
     }
 
     const textureDescriptor = {
-      size: {width: topLevel.width, height: topLevel.height, depth: 1},
-      format,
+      size: {width: textureData.width, height: textureData.height, depth: 1},
+      format: textureData.format,
       usage,
       mipLevelCount: mipLevelCount,
     };
@@ -268,13 +262,13 @@ class WebGPUTextureClient {
     let textureBufferSize = 0;
     const levelCopyRanges = [];
 
-    for (const mipLevel of mipLevels) {
+    for (const mipLevel of textureImage.mipLevels) {
       const bytesPerImageRow = Math.ceil(mipLevel.width / blockSize.width) * blockSize.byteLength;
       const blockRows = Math.ceil(mipLevel.height / blockSize.height);
 
       // *SIGH* bytesPerRow has to be a multiple of 256.
       const bytesPerRow = Math.ceil(bytesPerImageRow / 256) * 256;
-      const bufferSize = Math.max(mipLevel.size, bytesPerRow * blockRows);
+      const bufferSize = Math.max(mipLevel.byteLength, bytesPerRow * blockRows);
 
       levelCopyRanges[mipLevel.level] = {
         bytesPerImageRow,
@@ -298,14 +292,14 @@ class WebGPUTextureClient {
 
     const commandEncoder = this.device.createCommandEncoder({});
 
-    for (const mipLevel of mipLevels) {
+    for (const mipLevel of textureImage.mipLevels) {
       const levelRange = levelCopyRanges[mipLevel.level];
 
       const textureBytes = new Uint8Array(textureDataArray, levelRange.textureDataOffset, levelRange.textureDataSize);
 
       if (levelRange.canFastCopy) {
         // Fast path: Everything lines up and we can just blast the image data into the buffer in one go.
-        textureBytes.set(new Uint8Array(buffer, mipLevel.offset, mipLevel.size));
+        textureBytes.set(new Uint8Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength));
 
         // TODO: This should work just as well, once https://dawn-review.googlesource.com/c/dawn/+/26320 is fixed.
         // Could be that the mapped buffer approach is more efficient, though? Worth testing.
@@ -320,7 +314,7 @@ class WebGPUTextureClient {
         // Slow path: Otherwise we need to loop through the texture and copy it's content's row by row.
         for (let i = 0; i < levelRange.blockRows; ++i) {
           textureBytes.set(
-              new Uint8Array(buffer, mipLevel.offset + (levelRange.bytesPerImageRow*i), levelRange.bytesPerImageRow),
+              new Uint8Array(mipLevel.buffer, mipLevel.byteOffset + (levelRange.bytesPerImageRow*i), levelRange.bytesPerImageRow),
               levelRange.bytesPerRow*i);
         }
       }
@@ -351,7 +345,7 @@ class WebGPUTextureClient {
       this.generateMipmap(texture, textureDescriptor);
     }
 
-    return new WebTextureResult(texture, topLevel.width, topLevel.height, 1, mipLevelCount, format);
+    return new WebTextureResult(texture, textureData.width, textureData.height, 1, mipLevelCount, textureData.format);
   }
 
   /**

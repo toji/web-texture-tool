@@ -324,19 +324,15 @@ function parseFile(buffer, supportedFormats, mipmaps) {
     }
   }
 
-  if(blockBytes == 0) {
-    return {
-      buffer: buffer,
-      format: internalFormat,
-      mipLevels: [{
-        level: 0,
-        width,
-        height,
-        offset: dataOffset,
-        size: width * height * bytesPerPixel
-      }],
-    };
+  if (blockBytes == 0) {
+    return new WorkerTextureData(internalFormat, width, height, buffer, {
+      byteOffset: dataOffset,
+      byteLength: width * height * bytesPerPixel
+    });
   }
+
+  const textureData = new WorkerTextureData(internalFormat, width, height);
+  const textureImage = textureData.getImage(0);
 
   let mipmapCount = 1;
   if(header[off_flags] & DDSD_MIPMAPCOUNT && mipmaps !== false) {
@@ -347,23 +343,18 @@ function parseFile(buffer, supportedFormats, mipmaps) {
   for(let level = 0; level < mipmapCount; ++level) {
     const byteLength = blockBytes ? Math.max(4, width)/4 * Math.max(4, height)/4 * blockBytes :
                                     width * height * 4;
-    mipLevels.push({
-      level,
-      width,
-      height,
-      offset: dataOffset,
-      size: byteLength,
+
+    textureImage.setMipLevel(level, buffer, {
+      byteOffset: dataOffset,
+      byteLength
     });
+
     dataOffset += byteLength;
-    width *= 0.5;
-    height *= 0.5;
+    width = Math.max(1, Math.ceil(width / 2));
+    height = Math.max(1, Math.ceil(height / 2));
   }
 
-  return {
-    buffer,
-    format: internalFormat,
-    mipLevels: mipLevels,
-  };
+  return textureData;
 }
 
 onmessage = CreateTextureMessageHandler(parseFile);

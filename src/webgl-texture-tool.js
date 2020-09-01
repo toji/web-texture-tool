@@ -41,6 +41,7 @@ const GL_FORMAT_MAP = {
   'rgba8unorm': {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8058}, // RGBA8
   'rgb565unorm': {format: GL.RGB, type: GL.UNSIGNED_SHORT_5_6_5, sizedFormat: GL.RGB565},
   'rgba4unorm': {format: GL.RGBA, type: GL.UNSIGNED_SHORT_4_4_4_4, sizedFormat: GL.RGBA4},
+  'rgba5551unorm': {format: GL.RGBA, type: GL.UNSIGNED_SHORT_5_5_5_1, sizedFormat: GL.RGB5_A1 },
 
   // Compressed formats enums from http://www.khronos.org/registry/webgl/extensions/
   'bc1-rgb-unorm': {compressed: true, texStorage: true, sizedFormat: 0x83F0}, // COMPRESSED_RGB_S3TC_DXT1_EXT
@@ -218,41 +219,24 @@ class WebGLTextureClient {
   }
 
   /**
-   * Creates a WebGLTexture from the given texture level data.
+   * Creates a WebGLTexture from the given texture data.
    *
-   * @param {ArrayBuffer} buffer - Buffer containing all data for the mip levels.
-   * @param {Array<module:WebTextureTool.WebTextureLevelData>} mipLevels - An array of data and descriptions for each
+   * @param {module:WebTextureTool.WebTextureData} textureData - Object containing data and layout for each image and
    * mip level of the texture.
-   * @param {module:WebTextureTool.WebTextureFormat} format - Format to store the data is provided in. May be a
-   * compressed format.
-   * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given.
+   * @param {boolean} generateMipmaps - True if mipmaps generation is desired. Only applies if a single level is given
+   * and the texture format is renderable.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  textureFromLevelData(buffer, mipLevels, format, generateMipmaps) {
+  textureFromTextureData(textureData, generateMipmaps) {
     const gl = this.gl;
     if (!gl) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
 
-    const glFormat = resolveFormat(format);
+    const glFormat = resolveFormat(textureData.format);
 
-    const topLevel = mipLevels[0];
-    const levelData = [];
-    for (const mipLevel of mipLevels) {
-      switch (format) {
-        case 'rgb565unorm':
-        case 'rgba4unorm':
-          levelData[mipLevel.level] = new Uint16Array(buffer, mipLevel.offset, mipLevel.size / 2);
-          break;
-        default:
-          levelData[mipLevel.level] = new Uint8Array(buffer, mipLevel.offset, mipLevel.size);
-          break;
-      }
-
-      if (mipLevel.level < topLevel.level) {
-        topLevel = mipLevel;
-      }
-    }
+    // TODO: For the moment only handle first image.
+    const textureImage = textureData.images[0];
 
     // Can't automatically generate mipmaps for compressed formats.
     if (glFormat.compressed) {
@@ -261,10 +245,10 @@ class WebGLTextureClient {
 
     // For WebGL 1.0 only generate mipmaps if the texture is a power of two size.
     if (!this.isWebGL2 && generateMipmaps) {
-      generateMipmaps = isPowerOfTwo(topLevel.width) && isPowerOfTwo(topLevel.height);
+      generateMipmaps = isPowerOfTwo(textureData.width) && isPowerOfTwo(textureData.height);
     }
-    const mipLevelCount = mipLevels.length > 1 ? mipLevels.length :
-                                         (generateMipmaps ? calculateMipLevels(topLevel.width, topLevel.height) : 1);
+    const mipLevelCount = textureImage.mipLevels.length > 1 ? textureImage.mipLevels.length :
+                                         (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
 
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -272,22 +256,34 @@ class WebGLTextureClient {
     const useTexStorage = this.isWebGL2 && (!glFormat.compressed || glFormat.texStorage);
 
     if (useTexStorage) {
-      gl.texStorage2D(gl.TEXTURE_2D, mipLevelCount, glFormat.sizedFormat, topLevel.width, topLevel.height);
+      gl.texStorage2D(gl.TEXTURE_2D, mipLevelCount, glFormat.sizedFormat, textureData.width, textureData.height);
     }
 
-    for (const mipLevel of mipLevels) {
+    for (const mipLevel of textureImage.mipLevels) {
+      let levelData;
+      switch (textureData.format) {
+        case 'rgb565unorm':
+        case 'rgba4unorm':
+        case 'rgba5551unorm':
+          levelData = new Uint16Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength / 2);
+          break;
+        default:
+          levelData = new Uint8Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength);
+          break;
+      }
+
       if (glFormat.compressed) {
         if (useTexStorage) {
           gl.compressedTexSubImage2D(
               gl.TEXTURE_2D, mipLevel.level,
               0, 0, mipLevel.width, mipLevel.height,
               glFormat.sizedFormat,
-              levelData[mipLevel.level]);
+              levelData);
         } else {
           gl.compressedTexImage2D(
               gl.TEXTURE_2D, mipLevel.level, glFormat.sizedFormat,
               mipLevel.width, mipLevel.height, 0,
-              levelData[mipLevel.level]);
+              levelData);
         }
       } else {
         if (useTexStorage) {
@@ -295,22 +291,22 @@ class WebGLTextureClient {
               gl.TEXTURE_2D, mipLevel.level,
               0, 0, mipLevel.width, mipLevel.height,
               glFormat.format, glFormat.type,
-              levelData[mipLevel.level]);
+              levelData);
         } else {
           gl.texImage2D(
               gl.TEXTURE_2D, mipLevel.level, glFormat.format,
               mipLevel.width, mipLevel.height, 0,
               glFormat.format, glFormat.type,
-              levelData[mipLevel.level]);
+              levelData);
         }
       }
     }
 
-    if (generateMipmaps && mipLevels.length == 1) {
+    if (generateMipmaps && textureImage.mipLevels.length == 1) {
       gl.generateMipmap(gl.TEXTURE_2D);
     }
 
-    return new WebTextureResult(texture, topLevel.width, topLevel.height, 1, mipLevelCount, format);
+    return new WebTextureResult(texture, textureData.width, textureData.height, 1, mipLevelCount, textureData.format);
   }
 
   /**

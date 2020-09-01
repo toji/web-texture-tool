@@ -240,6 +240,9 @@ function transcodeEtc1s(BasisTranscoder, buffer, targetFormat, header, globalDat
   let levelHeight = Math.max(header.pixelHeight, 1);
   let levelDepth = Math.max(header.pixelDepth, 1);
   let curImageIndex = 0;
+
+  const textureData = new WorkerTextureData(WTT_FORMAT_MAP[targetFormat].format, levelWidth, levelHeight);
+
   for (let levelIndex = 0; levelIndex < levelCount; ++levelIndex) {
     const imageInfo = new BasisTranscoder.ImageInfo(
         BasisTranscoder.TextureFormat.ETC1S, levelWidth, levelHeight, levelIndex);
@@ -248,6 +251,8 @@ function transcodeEtc1s(BasisTranscoder, buffer, targetFormat, header, globalDat
     const levelImageCount = Math.max(header.layerCount, 1) * header.faceCount * levelDepth;
 
     for (let levelImage = 0; levelImage < levelImageCount; ++levelImage) {
+      const textureImage = textureData.getImage(levelImage);
+
       // In KTX2 container locate the imageDesc for this image.
       const imageDesc = globalData.imageDescs[curImageIndex++];
       imageInfo.flags = imageDesc.imageFlags;
@@ -271,21 +276,10 @@ function transcodeEtc1s(BasisTranscoder, buffer, targetFormat, header, globalDat
       }
 
       const imgData = result.transcodedImage.get_typed_memory_view();
-
-      mipLevels.push({
-        level: levelIndex,
-        offset: totalTranscodeSize,
-        size: imgData.byteLength,
-        width: levelWidth,
-        height: levelHeight,
-      });
-
-      totalTranscodeSize += imgData.byteLength;
-
-      mipLevelData.push({
-        transcodedImage: result.transcodedImage,
-        imgData,
-      });
+      const bufferData = new Uint8Array(imgData.byteLength);
+      bufferData.set(imgData);
+      textureImage.setMipLevel(levelIndex, bufferData);
+      result.transcodedImage.delete();
     }
 
     levelWidth = Math.max(1, Math.ceil(levelWidth / 2));
@@ -293,23 +287,7 @@ function transcodeEtc1s(BasisTranscoder, buffer, targetFormat, header, globalDat
     levelDepth = Math.max(1, Math.ceil(levelDepth / 2));
   }
 
-  // Copy all the transcoded data into one big array for transfer out of the worker.
-  const transcodeData = new Uint8Array(totalTranscodeSize);
-  for (let i = 0; i < mipLevels.length; ++i) {
-    const mipLevel = mipLevels[i];
-    transcodeData.set(mipLevelData[i].imgData, mipLevel.offset);
-
-    // Do not call delete() until data has been uploaded
-    // or otherwise copied.
-    mipLevelData[i].transcodedImage.delete();
-  }
-
-  // Post the transcoded results back to the main thread.
-  return {
-    buffer: transcodeData.buffer,
-    format: WTT_FORMAT_MAP[targetFormat].format,
-    mipLevels: mipLevels,
-  };
+  return textureData;
 }
 
 onmessage = CreateTextureMessageHandler(parseFile);
