@@ -258,86 +258,22 @@ class WebGPUTextureClient {
     };
     const texture = this.device.createTexture(textureDescriptor);
 
-    // Pre-compute how much big the copy buffer will need to be to hold every available mip level of the texture.
-    let textureBufferSize = 0;
-    const levelCopyRanges = [];
-
     for (const mipLevel of textureImage.mipLevels) {
-      const bytesPerImageRow = Math.ceil(mipLevel.width / blockSize.width) * blockSize.byteLength;
-      const blockRows = Math.ceil(mipLevel.height / blockSize.height);
+      const bytesPerRow = Math.ceil(mipLevel.width / blockSize.width) * blockSize.byteLength;
 
-      // *SIGH* bytesPerRow has to be a multiple of 256.
-      const bytesPerRow = Math.ceil(bytesPerImageRow / 256) * 256;
-      const bufferSize = Math.max(mipLevel.byteLength, bytesPerRow * blockRows);
-
-      levelCopyRanges[mipLevel.level] = {
-        bytesPerImageRow,
-        blockRows,
-        bytesPerRow,
-        canFastCopy: bytesPerRow == bytesPerImageRow || blockRows == 1,
-        textureDataOffset: textureBufferSize,
-        textureDataSize: bufferSize,
-      };
-
-      textureBufferSize += bufferSize;
+      // TODO: It may be more efficient to upload the mip levels to a buffer and copy to the texture, but this makes
+      // the code significantly simpler and avoids an alignment issue I was seeing previously, so for now we'll take
+      // the easy route.
+      this.device.defaultQueue.writeTexture(
+        {texture: texture, mipLevel: mipLevel.level},
+        mipLevel.buffer,
+        {offset: mipLevel.byteOffset, bytesPerRow},
+        { // Copy width and height must be a multiple of the format block size;
+          width: Math.ceil(mipLevel.width / blockSize.width) * blockSize.width,
+          height: Math.ceil(mipLevel.height / blockSize.height) * blockSize.height,
+          depth: 1,
+        });
     }
-
-    // Allocate a data buffer large enough to hold every mip level.
-    const textureDataBuffer = this.device.createBuffer({
-      size: textureBufferSize,
-      usage: GPUBufferUsage.COPY_SRC,
-      mappedAtCreation: true,
-    });
-    const textureDataArray = textureDataBuffer.getMappedRange();
-
-    const commandEncoder = this.device.createCommandEncoder({});
-
-    for (const mipLevel of textureImage.mipLevels) {
-      const levelRange = levelCopyRanges[mipLevel.level];
-
-      const textureBytes = new Uint8Array(textureDataArray, levelRange.textureDataOffset, levelRange.textureDataSize);
-
-      if (levelRange.canFastCopy) {
-        // Fast path: Everything lines up and we can just blast the image data into the buffer in one go.
-        textureBytes.set(new Uint8Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength));
-
-        // TODO: This should work just as well, once https://dawn-review.googlesource.com/c/dawn/+/26320 is fixed.
-        // Could be that the mapped buffer approach is more efficient, though? Worth testing.
-        /*
-        this.device.defaultQueue.writeTexture(
-            {texture: texture},
-            new Uint8Array(buffer, mipLevel.offset, mipLevel.size),
-            {offset: levelRange.textureDataOffset, bytesPerRow: levelRange.bytesPerRow},
-            textureDescriptor.size);
-        */
-      } else {
-        // Slow path: Otherwise we need to loop through the texture and copy it's content's row by row.
-        for (let i = 0; i < levelRange.blockRows; ++i) {
-          textureBytes.set(
-              new Uint8Array(mipLevel.buffer, mipLevel.byteOffset + (levelRange.bytesPerImageRow*i), levelRange.bytesPerImageRow),
-              levelRange.bytesPerRow*i);
-        }
-      }
-
-      commandEncoder.copyBufferToTexture({
-        buffer: textureDataBuffer,
-        bytesPerRow: levelRange.bytesPerRow,
-      }, {
-        texture: texture,
-        mipLevel: mipLevel.level,
-      }, {
-        // Copy width and height must be a multiple of the format block size;
-        width: Math.ceil(mipLevel.width / blockSize.width) * blockSize.width,
-        height: Math.ceil(mipLevel.height / blockSize.height) * blockSize.height,
-        depth: 1,
-      });
-    }
-
-    textureDataBuffer.unmap();
-
-    this.device.defaultQueue.submit([commandEncoder.finish()]);
-
-    textureDataBuffer.destroy();
 
     if (generateMipmaps) {
       // WARNING! THIS IS CURRENTLY ASYNC!
