@@ -130,6 +130,10 @@ export class WebGPURenderer {
         colorBlend: {
           srcFactor: 'src-alpha',
           dstFactor: 'one-minus-src-alpha',
+        },
+        alphaBlend: {
+          srcFactor: 'zero',
+          dstFactor: 'one'
         }
       }],
       sampleCount: SAMPLE_COUNT,

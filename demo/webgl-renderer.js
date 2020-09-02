@@ -73,7 +73,10 @@ export class WebGLRenderer {
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.blendFuncSeparate(
+      gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,
+      gl.ZERO, gl.ONE
+    );
 
     this.program = new Util.Program(this.gl, vertexSrc, fragmentSrc, attributes);
 
