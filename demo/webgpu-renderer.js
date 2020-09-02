@@ -22,13 +22,13 @@ const SAMPLE_COUNT = 4;
 const vertexSrc = `#version 450
   const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
   const vec2 tex[4] = vec2[4](vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(0.0f, 0.0f), vec2(1.0f, 0.0f));
-  layout(location = 0) out vec2 vTex;
+  layout(location=0) out vec2 vTex;
 
-  layout(std140, set=0, binding=0) uniform FrameUniforms {
+  layout(std140, set=1, binding=0) uniform FrameUniforms {
     mat4 projectionMatrix;
   };
 
-  layout(std140, set=1, binding=0) uniform TileUniforms {
+  layout(std140, set=0, binding=0) uniform TileUniforms {
     mat4 modelViewMatrix;
   };
 
@@ -38,12 +38,23 @@ const vertexSrc = `#version 450
   }
 `;
 
-const fragmentSrc = `#version 450
-  layout(set = 1, binding = 1) uniform sampler imgSampler;
-  layout(set = 1, binding = 2) uniform texture2D img;
+const backgroundVertexSrc = `#version 450
+  const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
+  const vec2 tex[4] = vec2[4](vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(0.0f, 0.0f), vec2(1.0f, 0.0f));
+  layout(location=0) out vec2 vTex;
 
-  layout(location = 0) in vec2 vTex;
-  layout(location = 0) out vec4 outColor;
+  void main() {
+    vTex = tex[gl_VertexIndex];
+    gl_Position = vec4(pos[gl_VertexIndex], 0.0, 1.0);
+  }
+`;
+
+const fragmentSrc = `#version 450
+  layout(set=0, binding=1) uniform sampler imgSampler;
+  layout(set=0, binding=2) uniform texture2D img;
+
+  layout(location=0) in vec2 vTex;
+  layout(location=0) out vec4 outColor;
   void main() {
     outColor = texture(sampler2D(img, imgSampler), vTex);
   }
@@ -88,7 +99,7 @@ export class WebGPURenderer {
       attachment: undefined,
       // attachment is acquired and set in onFrame.
       resolveTarget: undefined,
-      loadValue: {r: 0.0, g: 0.0, b: 0.5, a: 1.0},
+      loadValue: {r: 0.0, g: 0.0, b: 0.0, a: 1.0},
     };
 
     this.renderPassDescriptor = {
@@ -132,7 +143,7 @@ export class WebGPURenderer {
     });
 
     this.frameUniformBindGroup = this.device.createBindGroup({
-      layout: this.tilePipeline.getBindGroupLayout(0),
+      layout: this.tilePipeline.getBindGroupLayout(1),
       entries: [{
         binding: 0,
         resource: {
@@ -141,7 +152,38 @@ export class WebGPURenderer {
       }],
     });
 
-    this.checkerboard = await this.textureTool.loadTextureFromUrl('textures/checkerboard.png');
+    // Background rendering setup
+    this.backgroundPipeline = this.device.createRenderPipeline({
+      vertexStage: {
+        module: this.device.createShaderModule({ code: glslang.compileGLSL(backgroundVertexSrc, 'vertex') }),
+        entryPoint: 'main'
+      },
+      fragmentStage: {
+        module: this.device.createShaderModule({ code: glslang.compileGLSL(fragmentSrc, 'fragment') }),
+        entryPoint: 'main'
+      },
+      primitiveTopology: 'triangle-strip',
+      vertexState: {
+        indexFormat: 'uint32'
+      },
+      colorStates: [{
+        format: this.swapChainFormat,
+      }],
+      sampleCount: SAMPLE_COUNT,
+    });
+
+    const checkerboard = await this.textureTool.loadTextureFromUrl('textures/checkerboard.png');
+
+    this.backgroundBindGroup = this.device.createBindGroup({
+      layout: this.backgroundPipeline.getBindGroupLayout(0),
+      entries: [{
+        binding: 1,
+        resource: this.tileSampler,
+      }, {
+        binding: 2,
+        resource: checkerboard.texture.createView(),
+      }],
+    });
   }
 
   onCanvasResize(width, height) {
@@ -169,7 +211,7 @@ export class WebGPURenderer {
   loadTextureFromUrl(tile, url) {
     return this.textureTool.loadTextureFromUrl(url).then((result) => {
       const bindGroup = this.device.createBindGroup({
-        layout: this.tilePipeline.getBindGroupLayout(1),
+        layout: this.tilePipeline.getBindGroupLayout(0),
         entries: [{
           binding: 0,
           resource: {
@@ -193,7 +235,7 @@ export class WebGPURenderer {
       const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
 
       const bindGroup = this.device.createBindGroup({
-        layout: this.tilePipeline.getBindGroupLayout(1),
+        layout: this.tilePipeline.getBindGroupLayout(0),
         entries: [{
           binding: 0,
           resource: {
@@ -225,14 +267,19 @@ export class WebGPURenderer {
     const commandEncoder = this.device.createCommandEncoder({});
 
     const passEncoder = commandEncoder.beginRenderPass(this.renderPassDescriptor);
-    passEncoder.setBindGroup(0, this.frameUniformBindGroup);
 
+    // Draw a checkered background (mostly so we can see alpha effects).
+    passEncoder.setPipeline(this.backgroundPipeline);
+    passEncoder.setBindGroup(0, this.backgroundBindGroup);
+    passEncoder.draw(4, 1, 0, 0);
+
+    // Draw each tile.
     passEncoder.setPipeline(this.tilePipeline);
-
+    passEncoder.setBindGroup(1, this.frameUniformBindGroup);
     for (let tile of tiles) {
       if (tile.texture) {
         this.device.defaultQueue.writeBuffer(tile.uniformBuffer, 0, tile.modelView);
-        passEncoder.setBindGroup(1, tile.bindGroup);
+        passEncoder.setBindGroup(0, tile.bindGroup);
         passEncoder.draw(4, 1, 0, 0);
       }
     }

@@ -66,8 +66,17 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
       const gui = new dat.GUI();
 
-      gui.add(settings, "renderer", {WebGL2: 'WebGL2', WebGPU: 'WebGPU'}).onChange(updateRenderer);
-      gui.add(settings, "textureSet", {Basis: 'basis', KTX2: 'ktx', Jpeg: 'jpg', DDS: 'dds'});
+      gui.add(settings, "renderer", {
+        WebGL2: 'WebGL2',
+        WebGPU: 'WebGPU'
+      }).onChange(updateRenderer);
+      gui.add(settings, "textureSet", {
+        Basis: 'basis',
+        KTX2: 'ktx',
+        DDS: 'dds',
+        'Browser formats': 'img',
+        All: 'all'
+      }).onChange(onResetTextures);
       gui.add(settings, "compressedFormats").onChange(() => {
         if (renderer) {
           renderer.textureTool.allowCompressedFormats = settings.compressedFormats;
@@ -102,21 +111,22 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           './textures/ktx/kodim17_basis.ktx2',
           './textures/ktx/rgba-mipmap-reference-basis.ktx2',
         ],
-        jpg: [
-          './textures/jpg/Chip001_2K-JPG/Chip001_2K_Color.jpg',
-          './textures/jpg/Chip001_2K-JPG/Chip001_2K_Roughness.jpg',
-          './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_AmbientOcclusion.jpg',
-          './textures/jpg/PaintedMetal017_2K-JPG/PaintedMetal017_2K_Color.jpg',
-          './textures/jpg/PavingStones053_2K-JPG/PavingStones053_2K_Color.jpg',
-          './textures/jpg/PavingStones053_2K-JPG/PavingStones053_2K_Normal.jpg',
-          './textures/jpg/Rock026_2K-JPG/Rock026_2K_Color.jpg',
-          './textures/jpg/Rock026_2K-JPG/Rock026_2K_Normal.jpg',
-          './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Color.jpg',
-          './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Normal.jpg',
-          './textures/jpg/SheetMetal002_2K-JPG/SheetMetal002_2K_Roughness.jpg',
-          './textures/jpg/Tiles052_2K-JPG/Tiles052_2K_Color.jpg',
-          './textures/jpg/Tiles052_2K-JPG/Tiles052_2K_Roughness.jpg',
-          './textures/jpg/WoodFloor041_2K-JPG/WoodFloor041_2K_Color.jpg',
+        img: [
+          './textures/img/dice.png',
+          './textures/img/Chip001_2K-JPG/Chip001_2K_Color.jpg',
+          './textures/img/Chip001_2K-JPG/Chip001_2K_Roughness.jpg',
+          './textures/img/PaintedMetal017_2K-JPG/PaintedMetal017_2K_AmbientOcclusion.jpg',
+          './textures/img/PaintedMetal017_2K-JPG/PaintedMetal017_2K_Color.jpg',
+          './textures/img/PavingStones053_2K-JPG/PavingStones053_2K_Color.jpg',
+          './textures/img/PavingStones053_2K-JPG/PavingStones053_2K_Normal.jpg',
+          './textures/img/Rock026_2K-JPG/Rock026_2K_Color.jpg',
+          './textures/img/Rock026_2K-JPG/Rock026_2K_Normal.jpg',
+          './textures/img/SheetMetal002_2K-JPG/SheetMetal002_2K_Color.jpg',
+          './textures/img/SheetMetal002_2K-JPG/SheetMetal002_2K_Normal.jpg',
+          './textures/img/SheetMetal002_2K-JPG/SheetMetal002_2K_Roughness.jpg',
+          './textures/img/Tiles052_2K-JPG/Tiles052_2K_Color.jpg',
+          './textures/img/Tiles052_2K-JPG/Tiles052_2K_Roughness.jpg',
+          './textures/img/WoodFloor041_2K-JPG/WoodFloor041_2K_Color.jpg',
         ],
         dds: [
           './textures/dds/disturb_argb_mip.dds',
@@ -134,6 +144,13 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
         ],
       };
 
+      // Create a texture set that contains the textures from every other set.
+      const combinedTextureSet = [];
+      for (const set in textureSets) {
+        combinedTextureSet.push(...textureSets[set]);
+      }
+      textureSets.all = combinedTextureSet;
+
       const projectionMat = mat4.create();
 
       const tileColumns = 5;
@@ -144,6 +161,8 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
       class TextureTile {
         constructor(column, row) {
+          this.column = column;
+          this.row = row;
           this.x = ((column - (tileColumns / 2)) * 2) + 1;
           this.yOffset = (row * 2 + (column * 0.66));
           this.scroll = 0;
@@ -153,6 +172,10 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           this.nextLoad = column * row * 100;
           this.scale = 0;
           this.targetScale = 0;
+        }
+
+        refresh() {
+          this.nextLoad = this.column * this.row * 100;
         }
 
         update(delta) {
@@ -219,10 +242,17 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
       }
       window.requestAnimationFrame(onFrame);
 
+      function onResetTextures() {
+        for (let tile of tiles) {
+          tile.refresh();
+        }
+      }
+
       function updateRenderer() {
         if (renderer) {
           document.body.removeChild(renderer.canvas);
           renderer.destroy();
+          onResetTextures();
         }
 
         renderer = null;
