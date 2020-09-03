@@ -48,8 +48,6 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
   </head>
 
   <body>
-    <!--canvas id='output-canvas'></canvas-->
-
     <script type='module'>
       import {WebGLRenderer} from './webgl-renderer.js';
       import {WebGPURenderer} from './webgpu-renderer.js';
@@ -73,7 +71,8 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
       }).onChange(updateRenderer);
       gui.add(settings, "textureSet", {
         Basis: 'basis',
-        KTX2: 'ktx',
+        KTX: 'ktx',
+        'Uncompressed KTX': 'ktxuncompressed',
         DDS: 'dds',
         'Browser formats': 'img',
         All: 'all'
@@ -100,22 +99,6 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           './textures/ktx/alpha_simple.basis',
         ],
         ktx: [
-          // Uncompressed images
-          //'./textures/ktx/ccwn2c08.ktx2',
-          //'./textures/ktx/color_grid_zstd.ktx2',
-          //'./textures/ktx/dice_uncompressed.ktx2',
-
-          // Images with known issues
-          /*'./textures/ktx/camera_camera_BaseColor.ktx2',
-          './textures/ktx/CesiumLogoFlat.ktx2',
-          './textures/ktx/cimg5293_uastc_zstd.ktx2',
-          './textures/ktx/cimg5293_uastc.ktx2',
-          './textures/ktx/color_grid_uastc_zstd.ktx2',
-          './textures/ktx/color_grid_uastc.ktx2',
-          './textures/ktx/Iron_Bars_001_normal_uastc_rdo3_zstd5.ktx2',
-          './textures/ktx/ktx_document_basis.ktx2',*/
-
-          // Known good
           './textures/ktx/alpha_simple_basis.ktx2',
           './textures/ktx/color_grid_basis.ktx2',
           './textures/ktx/FlightHelmet_baseColor_basis.ktx2',
@@ -125,7 +108,22 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           './textures/ktx/dice_mipmap.ktx2',
           './textures/ktx/dice_uastc.ktx2',
           './textures/ktx/dice_uastc_mipmap.ktx2',
+          './textures/ktx/camera_camera_BaseColor.ktx2',
+          './textures/ktx/CesiumLogoFlat.ktx2',
 
+          // Images with known issues
+          './textures/ktx/cimg5293_uastc_zstd.ktx2',
+          './textures/ktx/cimg5293_uastc.ktx2',
+          './textures/ktx/color_grid_uastc_zstd.ktx2',
+          './textures/ktx/color_grid_uastc.ktx2',
+          './textures/ktx/Iron_Bars_001_normal_uastc_rdo3_zstd5.ktx2',
+          './textures/ktx/ktx_document_basis.ktx2',
+        ],
+        ktxuncompressed: [
+          // Uncompressed images
+          './textures/ktx/ccwn2c08.ktx2',
+          './textures/ktx/color_grid_zstd.ktx2',
+          './textures/ktx/dice_uncompressed.ktx2',
         ],
         img: [
           './textures/img/dice.png',

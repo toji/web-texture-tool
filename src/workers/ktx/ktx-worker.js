@@ -58,6 +58,23 @@ const alphaFormatPreference = [
 const opaqueFormatPreference = [
   'ETC1_RGB', 'BC7_M5_RGBA', 'BC1_RGB', 'ETC2_RGBA', 'ASTC_4x4_RGBA', 'PVRTC1_4_RGB', 'RGB565', 'RGBA32'];
 
+// TODO: There doesn't appear to be any limit on which of the many MANY VkFormats can be supported, so we'll need a
+// plan for supporting as many as we can.
+function vkFormatToGPUFormat(vkFormat) {
+  switch (vkFormat) {
+    case 0: // VK_FORMAT_UNDEFINED
+      throw new Error(`Cannot decode if VkFormat is VK_FORMAT_UNDEFINED`);
+    case 23: // VK_FORMAT_R8G8B8_UNORM
+      return 'rgb8unorm';
+    case 37: // VK_FORMAT_R8G8B8A8_UNORM
+      return 'rgba8unorm';
+    case 43: // VK_FORMAT_R8G8B8A8_SRGB
+      return 'rgba8unorm-srgb';
+    default:
+      throw new Error(`Unsupported VkFormat: ${vkFormat}`);
+  }
+}
+
 async function parseFile(buffer, supportedFormats, mipmaps) {
   const ktx = await KTX_INITIALIZED;
 
@@ -85,9 +102,10 @@ async function parseFile(buffer, supportedFormats, mipmaps) {
       throw new Error('Unable to transcode basis texture.');
     }
   } else {
-    // TODO: figure out how to map to the Vulkan formats here.
-    // ktxTexture.vkFormat;
-    throw new Error('Uncompressed formats not yet supported.');
+    format = vkFormatToGPUFormat(ktxTexture.vkFormat);
+    if (supportedFormats.indexOf(format) == -1) {
+      throw new Error(`Texture stored in unsupported format: ${format}`);
+    }
   }
 
   const textureData = new WorkerTextureData(format, ktxTexture.baseWidth, ktxTexture.baseHeight);

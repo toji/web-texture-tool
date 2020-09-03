@@ -43,9 +43,13 @@ const EXTENSION_FORMATS = {
   ],
 };
 
+const UNCOMPRESSED_BLOCKS = {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: true};
+
 const FORMAT_BLOCK_SIZE = {
-  'rgba8unorm': {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: true},
-  'bgra8unorm': {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: true},
+  'rgba8unorm': UNCOMPRESSED_BLOCKS,
+  'rgba8unorm-srgb': {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: false},
+  'bgra8unorm': UNCOMPRESSED_BLOCKS,
+  'bgra8unorm-srgb': {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: false},
   'bc1-rgba-unorm': {byteLength: 8, width: 4, height: 4},
   'bc2-rgba-unorm': {byteLength: 16, width: 4, height: 4},
   'bc3-rgba-unorm': {byteLength: 16, width: 4, height: 4},
@@ -79,12 +83,16 @@ class WebGPUTextureClient {
 
     this.uncompressedFormatList = [
       'rgba8unorm',
+      'rgba8unorm-srgb',
       'bgra8unorm',
+      'bgra8unorm-srgb',
     ];
 
     this.supportedFormatList = [
       'rgba8unorm',
+      'rgba8unorm-srgb',
       'bgra8unorm',
+      'bgra8unorm-srgb',
     ];
 
     // Add any other formats that are exposed by extensions.
@@ -251,7 +259,11 @@ class WebGPUTextureClient {
     }
 
     const textureDescriptor = {
-      size: {width: textureData.width, height: textureData.height, depth: 1},
+      size: {
+        width: Math.ceil(textureData.width / blockSize.width) * blockSize.width,
+        height: Math.ceil(textureData.height / blockSize.height) * blockSize.height,
+        depth: 1
+      },
       format: textureData.format,
       usage,
       mipLevelCount: mipLevelCount,

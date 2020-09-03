@@ -39,6 +39,7 @@ const GL = WebGLRenderingContext;
 const GL_FORMAT_MAP = {
   'rgb8unorm': {format: GL.RGB, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8051}, // RGB8
   'rgba8unorm': {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8058}, // RGBA8
+  'rgba8unorm-srgb': {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8C43}, // SRGB8_ALPHA8
   'rgb565unorm': {format: GL.RGB, type: GL.UNSIGNED_SHORT_5_6_5, sizedFormat: GL.RGB565},
   'rgba4unorm': {format: GL.RGBA, type: GL.UNSIGNED_SHORT_4_4_4_4, sizedFormat: GL.RGBA4},
   'rgba5551unorm': {format: GL.RGBA, type: GL.UNSIGNED_SHORT_5_5_5_1, sizedFormat: GL.RGB5_A1 },
@@ -127,6 +128,17 @@ class WebGLTextureClient {
     this.supportedFormatList = [
       'rgb8unorm', 'rgba8unorm', 'rgb565unorm', 'rgba4unorm',
     ];
+
+    if (this.isWebGL2) {
+      this.uncompressedFormatList.push('rgba8unorm-srgb');
+      this.supportedFormatList.push('rgba8unorm-srgb');
+    } else {
+      this.extensions.srgb = gl.getExtension('EXT_sRGB');
+      if (this.extensions.srgb) {
+        this.uncompressedFormatList.push('rgba8unorm-srgb');
+        this.supportedFormatList.push('rgba8unorm-srgb');
+      }
+    }
 
     if (this.extensions.astc) {
       this.supportedFormatList.push('astc-4x4-rgba-unorm');
