@@ -321,7 +321,7 @@ class WebGPUTextureClient {
       const passEncoder = commandEncoder.beginRenderPass({
         colorAttachments: [{
           attachment: dstView,
-          loadValue: 'load',
+          loadValue: [0, 0, 0, 0],
         }],
       });
 
