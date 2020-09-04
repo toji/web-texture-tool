@@ -26,41 +26,85 @@
 import {ImageLoader} from './image-loader.js';
 import {WorkerLoader} from './workers/worker-loader.js';
 
+// For access to WebGL enums without a context.
+const GL = WebGLRenderingContext;
+
 /**
  * Texture Format
  *
  * @typedef {string} WebTextureFormat
  */
-const WebTextureFormat = [
+
+// Additional format data used by Web Texture Tool, based off WebGPU formats.
+// WebGL equivalents given where possible.
+export const WebTextureFormat = {
   // Uncompressed formats
-  'rgba8unorm',
-  'rgba8unorm-srgb',
-  'bgra8unorm',
-  'bgra8unorm-srgb',
+  'rgb8unorm': {
+    canGenerateMipmaps: true,
+    gl: {format: GL.RGB, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8051}, // RGB8
+  },
+  'rgba8unorm': {
+    canGenerateMipmaps: true,
+    gl: {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8058}, // RGBA8
+  },
+  'rgba8unorm-srgb': {
+    gl: {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8C43}, // SRGB8_ALPHA8
+  },
+  'rgb565unorm': {
+    canGenerateMipmaps: true,
+    gl: {format: GL.RGB, type: GL.UNSIGNED_SHORT_5_6_5, sizedFormat: GL.RGB565},
+  },
+  'rgba4unorm': {
+    canGenerateMipmaps: true,
+    gl: {format: GL.RGBA, type: GL.UNSIGNED_SHORT_4_4_4_4, sizedFormat: GL.RGBA4},
+  },
+  'rgba5551unorm': {
+    canGenerateMipmaps: true,
+    gl: {format: GL.RGBA, type: GL.UNSIGNED_SHORT_5_5_5_1, sizedFormat: GL.RGB5_A1 },
+  },
+
+  'bgra8unorm': {canGenerateMipmaps: true}, // No WebGL equivalent
+  'bgra8unorm-srgb': {}, // No WebGL equivalent
 
   // Compressed formats
-  'bc3-rgba-unorm',
-  'bc7-rgba-unorm',
-
-  // Below here the format names are not official WebGPU texture format strings, but formats that WebGL supports.
-
-  // 32 Bit uncompressed
-  'rgb8unorm',
-
-  // 16 Bit Uncompressed
-  'rgb565unorm',
-  'rgba4unorm',
-  'rgba5551unorm',
-
-  // Compressed Formats
-  'etc1-rgb-unorm',
-  'etc2-rgba8unorm',
-  'bc1-rgb-unorm',
-  'bc2-rgba-unorm',
-  'astc-4x4-rgba-unorm',
-  'pvrtc1-4bpp-rgb-unorm',
-  'pvrtc1-4bpp-rgba-unorm',
-];
+  // WebGL enums from http://www.khronos.org/registry/webgl/extensions/
+  'bc1-rgb-unorm': {
+    gl: {texStorage: true, sizedFormat: 0x83F0}, // COMPRESSED_RGB_S3TC_DXT1_EXT
+    compressed: {blockBytes: 8, blockWidth: 4, blockHeight: 4},
+  },
+  'bc2-rgba-unorm': {
+    gl: {texStorage: true, sizedFormat: 0x83F2}, // COMPRESSED_RGBA_S3TC_DXT3_EXT
+    compressed: {blockBytes: 16, blockWidth: 4, blockHeight: 4},
+  },
+  'bc3-rgba-unorm': {
+    gl: {texStorage: false, sizedFormat: 0x83F3}, // COMPRESSED_RGBA_S3TC_DXT5_EXT
+    compressed: {blockBytes: 16, blockWidth: 4, blockHeight: 4},
+  },
+  'bc7-rgba-unorm': {
+    gl: {texStorage: true, sizedFormat: 0x8E8C}, // COMPRESSED_RGBA_BPTC_UNORM_EXT
+    compressed: {blockBytes: 16, blockWidth: 4, blockHeight: 4},
+  },
+  'etc1-rgb-unorm': {
+    gl: {texStorage: false, sizedFormat: 0x8D64}, // COMPRESSED_RGB_ETC1_WEBGL
+    compressed: {blockBytes: 8, blockWidth: 4, blockHeight: 4},
+  },
+  'etc2-rgba8unorm': {
+    gl: {texStorage: true, sizedFormat: 0x9278}, // COMPRESSED_RGBA8_ETC2_EAC
+    compressed: {blockBytes: 16, blockWidth: 4, blockHeight: 4},
+  },
+  'astc-4x4-rgba-unorm': {
+    gl: {texStorage: true, sizedFormat: 0x93B0}, // COMPRESSED_RGBA_ASTC_4x4_KHR
+    compressed: {blockBytes: 16, blockWidth: 4, blockHeight: 4},
+  },
+  'pvrtc1-4bpp-rgb-unorm': {
+    gl: {texStorage: false, sizedFormat: 0x8C00}, // COMPRESSED_RGB_PVRTC_4BPPV1_IMG
+    compressed: {blockBytes: 8, blockWidth: 4, blockHeight: 4},
+  },
+  'pvrtc1-4bpp-rgba-unorm': {
+    gl: {texStorage: false, sizedFormat: 0x8C02}, // COMPRESSED_RGBA_PVRTC_4BPPV1_IMG
+    compressed: {blockBytes: 8, blockWidth: 4, blockHeight: 4},
+  },
+};
 
 /**
  * Data and description for a single level of a texture.
@@ -105,8 +149,8 @@ export class WebTextureResult {
 export class WebTextureData {
   constructor(format, width, height, imageData = null, imageDataOptions = {}) {
     this.format = format;
-    this.width = width;
-    this.height = height;
+    this.width = Math.max(1, width);
+    this.height = Math.max(1, height);
     this.images = [];
 
     // Optionally, data for the first image's first mip level can be passed to the constructor to handle simple cases.
@@ -126,8 +170,8 @@ export class WebTextureData {
 }
 
 class WebTextureImageData {
-  constructor(textureResult) {
-    this.textureResult = textureResult;
+  constructor(textureData) {
+    this.textureData = textureData;
     this.mipLevels = [];
   }
 
@@ -136,8 +180,8 @@ class WebTextureImageData {
       throw new Error('Cannot define an image mip level twice.');
     }
 
-    const width = options.width || this.textureResult.width >> level;
-    const height = options.height || this.textureResult.height >> level;
+    const width = Math.max(1, options.width || this.textureData.width >> level);
+    const height = Math.max(1, options.height || this.textureData.height >> level);
     let byteOffset = options.byteOffset || 0;
     let byteLength = options.byteLength || 0;
 

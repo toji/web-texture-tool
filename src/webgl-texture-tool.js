@@ -20,45 +20,10 @@
  * @module WebGLTextureTool
  */
 
-import {WebTextureTool, WebTextureResult} from './web-texture-tool-base.js';
+import {WebTextureFormat, WebTextureTool, WebTextureResult} from './web-texture-tool-base.js';
 
 // For access to WebGL enums without a context.
 const GL = WebGLRenderingContext;
-
-/**
- * A color, represented a dictionary of R, G, B, and A values.
- *
- * @typedef {object} WebGLMappedFormat
- * @property {number} format - WebGL enum for the texture format.
- * @property {number} type - WebGL enum for the texture data type.
- * @property {number} sizedFormat - WebGL enum for the sized texture format or compressed format.
- * @property {boolean} compressed - Whether or not this is a compressed format.
- */
-
-// Mapping of formats used by Web Texture Tool (based off WebGPU formats) to the equivalent WebGL values.
-const GL_FORMAT_MAP = {
-  'rgb8unorm': {format: GL.RGB, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8051}, // RGB8
-  'rgba8unorm': {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8058}, // RGBA8
-  'rgba8unorm-srgb': {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8C43}, // SRGB8_ALPHA8
-  'rgb565unorm': {format: GL.RGB, type: GL.UNSIGNED_SHORT_5_6_5, sizedFormat: GL.RGB565},
-  'rgba4unorm': {format: GL.RGBA, type: GL.UNSIGNED_SHORT_4_4_4_4, sizedFormat: GL.RGBA4},
-  'rgba5551unorm': {format: GL.RGBA, type: GL.UNSIGNED_SHORT_5_5_5_1, sizedFormat: GL.RGB5_A1 },
-
-  // Compressed formats enums from http://www.khronos.org/registry/webgl/extensions/
-  'bc1-rgb-unorm': {compressed: true, texStorage: true, sizedFormat: 0x83F0}, // COMPRESSED_RGB_S3TC_DXT1_EXT
-  'bc2-rgba-unorm': {compressed: true, texStorage: true, sizedFormat: 0x83F2}, // COMPRESSED_RGBA_S3TC_DXT3_EXT
-  'bc3-rgba-unorm': {compressed: true, texStorage: false, sizedFormat: 0x83F3}, // COMPRESSED_RGBA_S3TC_DXT5_EXT
-  'bc7-rgba-unorm': {compressed: true, texStorage: true, sizedFormat: 0x8E8C}, // COMPRESSED_RGBA_BPTC_UNORM_EXT
-  'etc1-rgb-unorm': {compressed: true, texStorage: false, sizedFormat: 0x8D64}, // COMPRESSED_RGB_ETC1_WEBGL
-  'etc2-rgba8unorm': {compressed: true, texStorage: true, sizedFormat: 0x9278}, // COMPRESSED_RGBA8_ETC2_EAC
-  'astc-4x4-rgba-unorm': {compressed: true, texStorage: true, sizedFormat: 0x93B0}, // COMPRESSED_RGBA_ASTC_4x4_KHR
-  'pvrtc1-4bpp-rgb-unorm': {
-    compressed: true, texStorage: false, sizedFormat: 0x8C00, // COMPRESSED_RGB_PVRTC_4BPPV1_IMG
-  },
-  'pvrtc1-4bpp-rgba-unorm': {
-    compressed: true, texStorage: false, sizedFormat: 0x8C02, // COMPRESSED_RGBA_PVRTC_4BPPV1_IMG
-  },
-};
 
 /**
  * Determines if the given value is a power of two.
@@ -88,12 +53,12 @@ function calculateMipLevels(width, height) {
  * @returns {WebGLMappedFormat} - WebGL values that correspond with the given format.
  */
 function resolveFormat(format) {
-  const glFormat = GL_FORMAT_MAP[format];
-  if (!glFormat) {
+  const wtFormat = WebTextureFormat[format];
+  if (!wtFormat || !wtFormat.gl) {
     throw new Error(`No matching WebGL format for "${format}"`);
   }
 
-  return glFormat;
+  return wtFormat;
 }
 
 /**
@@ -194,8 +159,8 @@ class WebGLTextureClient {
     }
     const mipLevels = generateMipmaps ? calculateMipLevels(imageBitmap.width, imageBitmap.height) : 1;
 
-    const glFormat = resolveFormat(format);
-    if (glFormat.compressed) {
+    const wtFormat = resolveFormat(format);
+    if (wtFormat.compressed) {
       throw new Error(`Cannot create texture from image with compressed format "${format}"`);
     }
 
@@ -203,10 +168,10 @@ class WebGLTextureClient {
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
     if (this.isWebGL2) {
-      gl.texStorage2D(gl.TEXTURE_2D, mipLevels, glFormat.sizedFormat, imageBitmap.width, imageBitmap.height);
-      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, glFormat.format, glFormat.type, imageBitmap);
+      gl.texStorage2D(gl.TEXTURE_2D, mipLevels, wtFormat.gl.sizedFormat, imageBitmap.width, imageBitmap.height);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, wtFormat.gl.format, wtFormat.gl.type, imageBitmap);
     } else {
-      gl.texImage2D(gl.TEXTURE_2D, 0, glFormat.format, glFormat.format, glType, imageBitmap);
+      gl.texImage2D(gl.TEXTURE_2D, 0, wtFormat.gl.format, wtFormat.gl.format, glType, imageBitmap);
     }
 
     if (mipLevels > 1) {
@@ -245,13 +210,13 @@ class WebGLTextureClient {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
 
-    const glFormat = resolveFormat(textureData.format);
+    const wtFormat = resolveFormat(textureData.format);
 
     // TODO: For the moment only handle first image.
     const textureImage = textureData.images[0];
 
     // Can't automatically generate mipmaps for compressed formats.
-    if (glFormat.compressed) {
+    if (wtFormat.compressed) {
       generateMipmaps = false;
     }
 
@@ -265,10 +230,9 @@ class WebGLTextureClient {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    const useTexStorage = this.isWebGL2 && (!glFormat.compressed || glFormat.texStorage);
-
+    const useTexStorage = this.isWebGL2 && (!wtFormat.compressed || wtFormat.gl.texStorage);
     if (useTexStorage) {
-      gl.texStorage2D(gl.TEXTURE_2D, mipLevelCount, glFormat.sizedFormat, textureData.width, textureData.height);
+      gl.texStorage2D(gl.TEXTURE_2D, mipLevelCount, wtFormat.gl.sizedFormat, textureData.width, textureData.height);
     }
 
     for (const mipLevel of textureImage.mipLevels) {
@@ -284,16 +248,16 @@ class WebGLTextureClient {
           break;
       }
 
-      if (glFormat.compressed) {
+      if (wtFormat.compressed) {
         if (useTexStorage) {
           gl.compressedTexSubImage2D(
               gl.TEXTURE_2D, mipLevel.level,
               0, 0, mipLevel.width, mipLevel.height,
-              glFormat.sizedFormat,
+              wtFormat.gl.sizedFormat,
               levelData);
         } else {
           gl.compressedTexImage2D(
-              gl.TEXTURE_2D, mipLevel.level, glFormat.sizedFormat,
+              gl.TEXTURE_2D, mipLevel.level, wtFormat.gl.sizedFormat,
               mipLevel.width, mipLevel.height, 0,
               levelData);
         }
@@ -302,15 +266,19 @@ class WebGLTextureClient {
           gl.texSubImage2D(
               gl.TEXTURE_2D, mipLevel.level,
               0, 0, mipLevel.width, mipLevel.height,
-              glFormat.format, glFormat.type,
+              wtFormat.gl.format, wtFormat.gl.type,
               levelData);
         } else {
           gl.texImage2D(
-              gl.TEXTURE_2D, mipLevel.level, glFormat.format,
+              gl.TEXTURE_2D, mipLevel.level, wtFormat.gl.format,
               mipLevel.width, mipLevel.height, 0,
-              glFormat.format, glFormat.type,
+              wtFormat.gl.format, wtFormat.gl.type,
               levelData);
         }
+      }
+
+      if (gl.getError() != gl.NO_ERROR) {
+        console.warn('Error! Texture:', textureData, ", Mip: ", mipLevel);
       }
     }
 

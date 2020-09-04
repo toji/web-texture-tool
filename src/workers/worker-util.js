@@ -68,8 +68,8 @@ function CreateTextureMessageHandler(onBufferReady) {
 class WorkerTextureData {
   constructor(format, width, height, imageData = null, imageDataOptions = {}) {
     this.format = format;
-    this.width = width;
-    this.height = height;
+    this.width = Math.max(1, width);
+    this.height = Math.max(1, height);
 
     this.images = [];
     this.bufferSet = new Set();
@@ -107,8 +107,8 @@ class WorkerTextureData {
 }
 
 class WorkerTextureImageData {
-  constructor(textureResult) {
-    this.textureResult = textureResult;
+  constructor(textureData) {
+    this.textureData = textureData;
     this.mipLevels = [];
   }
 
@@ -117,8 +117,8 @@ class WorkerTextureImageData {
       throw new Error('Cannot define an image mip level twice.');
     }
 
-    const width = options.width || this.textureResult.width >> level;
-    const height = options.height || this.textureResult.height >> level;
+    const width = Math.max(1, options.width || this.textureData.width >> level);
+    const height = Math.max(1, options.height || this.textureData.height >> level);
     let byteOffset = options.byteOffset || 0;
     let byteLength = options.byteLength || 0;
 
@@ -136,7 +136,7 @@ class WorkerTextureImageData {
       byteOffset += bufferOrTypedArray.byteOffset;
     }
 
-    this.textureResult.bufferSet.add(buffer);
+    this.textureData.bufferSet.add(buffer);
 
     this.mipLevels[level] = {
       level,

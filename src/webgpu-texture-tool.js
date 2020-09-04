@@ -21,7 +21,7 @@
  * @module WebGPUTextureTool
  */
 
-import {WebTextureTool, WebTextureResult} from './web-texture-tool-base.js';
+import {WebTextureFormat, WebTextureTool, WebTextureResult} from './web-texture-tool-base.js';
 
 // TODO: Replace shaders with WGSL, which won't require a separate compile
 import glslangModule from './third-party/glslang/glslang.js'; // https://unpkg.com/@webgpu/glslang@0.0.7/web/glslang.js
@@ -41,19 +41,6 @@ const EXTENSION_FORMATS = {
     'bc3-rgba-unorm',
     'bc7-rgba-unorm',
   ],
-};
-
-const UNCOMPRESSED_BLOCKS = {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: true};
-
-const FORMAT_BLOCK_SIZE = {
-  'rgba8unorm': UNCOMPRESSED_BLOCKS,
-  'rgba8unorm-srgb': {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: false},
-  'bgra8unorm': UNCOMPRESSED_BLOCKS,
-  'bgra8unorm-srgb': {byteLength: 4, width: 1, height: 1, canGenerateMipmaps: false},
-  'bc1-rgba-unorm': {byteLength: 8, width: 4, height: 4},
-  'bc2-rgba-unorm': {byteLength: 16, width: 4, height: 4},
-  'bc3-rgba-unorm': {byteLength: 16, width: 4, height: 4},
-  'bc7-rgba-unorm': {byteLength: 16, width: 4, height: 4},
 };
 
 /**
@@ -240,12 +227,13 @@ class WebGPUTextureClient {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
 
-    const blockSize = FORMAT_BLOCK_SIZE[textureData.format];
-    if (!blockSize) {
-      throw new Error(`No block size information for format "${textureData.format}"`);
+    const wtFormat = WebTextureFormat[textureData.format];
+    if (!wtFormat) {
+      throw new Error(`Unknown format "${textureData.format}"`);
     }
 
-    generateMipmaps = generateMipmaps && blockSize.canGenerateMipmaps;
+    const blockInfo = wtFormat.compressed || {blockBytes: 4, blockWidth: 1, blockHeight: 1};
+    generateMipmaps = generateMipmaps && wtFormat.canGenerateMipmaps;
 
     // TODO: For the moment only handle first image.
     const textureImage = textureData.images[0];
@@ -260,8 +248,8 @@ class WebGPUTextureClient {
 
     const textureDescriptor = {
       size: {
-        width: Math.ceil(textureData.width / blockSize.width) * blockSize.width,
-        height: Math.ceil(textureData.height / blockSize.height) * blockSize.height,
+        width: Math.ceil(textureData.width / blockInfo.blockWidth) * blockInfo.blockWidth,
+        height: Math.ceil(textureData.height / blockInfo.blockHeight) * blockInfo.blockHeight,
         depth: 1
       },
       format: textureData.format,
@@ -271,7 +259,7 @@ class WebGPUTextureClient {
     const texture = this.device.createTexture(textureDescriptor);
 
     for (const mipLevel of textureImage.mipLevels) {
-      const bytesPerRow = Math.ceil(mipLevel.width / blockSize.width) * blockSize.byteLength;
+      const bytesPerRow = Math.ceil(mipLevel.width / blockInfo.blockWidth) * blockInfo.blockBytes;
 
       // TODO: It may be more efficient to upload the mip levels to a buffer and copy to the texture, but this makes
       // the code significantly simpler and avoids an alignment issue I was seeing previously, so for now we'll take
@@ -281,8 +269,8 @@ class WebGPUTextureClient {
         mipLevel.buffer,
         {offset: mipLevel.byteOffset, bytesPerRow},
         { // Copy width and height must be a multiple of the format block size;
-          width: Math.ceil(mipLevel.width / blockSize.width) * blockSize.width,
-          height: Math.ceil(mipLevel.height / blockSize.height) * blockSize.height,
+          width: Math.ceil(mipLevel.width / blockInfo.blockWidth) * blockInfo.blockWidth,
+          height: Math.ceil(mipLevel.height / blockInfo.blockHeight) * blockInfo.blockHeight,
           depth: 1,
         });
     }
