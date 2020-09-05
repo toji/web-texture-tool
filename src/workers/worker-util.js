@@ -51,12 +51,33 @@ function CreateTextureMessageHandler(onBufferReady) {
       return TextureLoadFail(id, `No url or buffer specified`);
     }
 
+    let supportedFormats = [...msg.data.supportedFormats];
+    let transcoders = {};
+    
+    for (const transcodeDst in UNCOMPRESSED_TRANSCODERS) {
+      const transcodeFunctions = UNCOMPRESSED_TRANSCODERS[transcodeDst];
+      for (const transcodeSrc in transcodeFunctions) {
+        if (supportedFormats.indexOf(transcodeSrc) == -1) {
+          supportedFormats.push(transcodeSrc);
+          transcoders[transcodeSrc] = {
+            format: transcodeDst,
+            function: transcodeFunctions[transcodeSrc],
+          };
+        }
+      }
+    }
+
     try {
       // Should return a WorkerTextureData instance
       const result = await onBufferReady(
         buffer, // An array buffer with the file data
-        msg.data.supportedFormats, // The formats this device supports
+        supportedFormats, // The formats this device supports
         msg.data.mipmaps); // Wether or not mipmaps should be unpacked
+      
+      const transcode = transcoders[result.format];
+      if (transcode) {
+        result.transcode(transcode.format, transcode.function);
+      }
 
       result.transfer(id);
     } catch(err) {
@@ -87,6 +108,15 @@ class WorkerTextureData {
       this.images[index] = image;
     }
     return image;
+  }
+
+  transcode(format, fn) {
+    for (const image of this.images) {
+      for (const level of image.mipLevels) {
+        fn(level);
+      }
+    }
+    this.format = format;
   }
 
   transfer(id) {
@@ -240,3 +270,42 @@ function createStructReader(layout) {
     return offset;
   };
 };
+
+// Uncompressed transcoders
+// There's a few formats that are trivial to transcode between and help patch up common formats that are missing from
+// either WebGL or WebGPU.
+
+// Transcoders are listed as { 'destination format': { 'source format': fn(), 'source_format2': fn()... } }
+// Destinations formats should be listed in order of preference.
+const UNCOMPRESSED_TRANSCODERS = {
+  'rgba8unorm': {
+    'bgra8unorm': (level) => {
+      // Because the buffer size stays the same we can do the swizzle in place.
+      const pixelCount = level.byteLength / 4;
+      const px = new Uint32Array(level.buffer, level.byteOffset, pixelCount);
+      for (let i = 0; i < pixelCount; ++i) {
+        const bgra = px[i];
+        px[i] = (bgra & 0xff00ff00) +
+                ((bgra & 0xff0000) >> 16) +
+                ((bgra & 0xff) << 16);
+      }
+    },
+
+    'rgb8unorm': (level) => {
+      const pixelCount = level.byteLength / 3;
+      const src = new Uint8Array(level.buffer, level.byteOffset, level.byteLength);
+      const dst = new Uint32Array(pixelCount);
+    
+      for (let i = 0; i < pixelCount; ++i) {
+        dst[i] = (src[i*3]) +         // R
+                 (src[i*3+1] << 8) +  // G
+                 (src[i*3+2] << 16) + // B
+                 0xff000000;          // A (Always 255)
+      }
+    
+      level.buffer = dst.buffer;
+      level.byteOffset = dst.byteOffset;
+      level.byteLength = dst.byteLength;
+    }
+  },
+}

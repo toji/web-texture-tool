@@ -209,21 +209,6 @@ function dxtToRgb565(src, src16Offset, width, height) {
   return dst;
 }
 
-function bgraToRgba(buffer, dataOffset, width, height) {
-  const pixelCount = width * height;
-  const src = new Uint32Array(buffer, dataOffset, pixelCount);
-  const dst = new Uint32Array(pixelCount);
-
-  for (let i = 0; i < pixelCount; ++i) {
-    const bgra = src[i];
-    dst[i] = (bgra & 0xff00ff00) +
-            ((bgra & 0xff0000) >> 16) +
-            ((bgra & 0xff) << 16);
-  }
-
-  return dst;
-}
-
 /**
  * Parses a DDS file from the given arrayBuffer and uploads it into the currently bound texture
  *
@@ -312,11 +297,6 @@ function parseFile(buffer, supportedFormats, mipmaps) {
       internalFormat = 'rgb565unorm';
       bytesPerPixel = 2;
       buffer = dxtToRgb565(new Uint16Array(buffer), dataOffset / 2, width, height).buffer;
-      dataOffset = 0;
-    } else if (internalFormat == 'bgra8unorm') {
-      // Transcode from BGRA to RGBA if BGRA isn't natively supported.
-      internalFormat = 'rgba8unorm';
-      buffer = bgraToRgba(buffer, dataOffset, width, height).buffer;
       dataOffset = 0;
     } else {
       throw new Error(`Unsupported
