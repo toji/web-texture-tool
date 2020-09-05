@@ -75,6 +75,22 @@ function vkFormatToGPUFormat(vkFormat) {
   }
 }
 
+// TODO: Expand this list too.
+function glFormatToGPUFormat(glInternalFormat) {
+  switch (glInternalFormat) {
+    case 0: // GL_NONE
+      throw new Error(`Cannot decode if glInternalFormat is GL_NONE`);
+    case 0x8051: // GL_RGB8
+      return 'rgb8unorm';
+    case 0x8058: // GL_RGBA8
+      return 'rgba8unorm';
+    case 0x8C43: // SRGB8_ALPHA8
+      return 'rgba8unorm-srgb';
+    default:
+      throw new Error(`Unsupported glInternalFormat: ${glInternalFormat}`);
+  }
+}
+
 async function parseFile(buffer, supportedFormats, mipmaps) {
   const ktx = await KTX_INITIALIZED;
 
@@ -102,10 +118,21 @@ async function parseFile(buffer, supportedFormats, mipmaps) {
       throw new Error('Unable to transcode basis texture.');
     }
   } else {
-    format = vkFormatToGPUFormat(ktxTexture.vkFormat);
-    if (supportedFormats.indexOf(format) == -1) {
-      throw new Error(`Texture stored in unsupported format: ${format}`);
+    if (ktxTexture.classId == 2) { // KTX2 texture
+      format = vkFormatToGPUFormat(ktxTexture.vkFormat);
+      if (supportedFormats.indexOf(format) == -1) {
+        throw new Error(`Texture stored in unsupported format: ${format}`);
+      }
+    } else if (ktxTexture.classId == 1) { // KTX texture
+      format = glFormatToGPUFormat(ktxTexture.glInternalformat);
+      if (supportedFormats.indexOf(format) == -1) {
+        throw new Error(`Texture stored in unsupported format: ${format}`);
+      }
     }
+  }
+
+  if (!format) {
+    throw new Error('Unable to identify texture format.');
   }
 
   const textureData = new WorkerTextureData(format, ktxTexture.baseWidth, ktxTexture.baseHeight);
