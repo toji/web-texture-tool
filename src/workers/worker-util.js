@@ -56,7 +56,7 @@ function CreateTextureMessageHandler(onBufferReady) {
     // Advertise formats that can be trivially transcoded to as supported as well.
     let transcoders = {};
     for (const transcodeDst in UNCOMPRESSED_TRANSCODERS) {
-      if (supportedFormats.indexOf(transcodeDst) == -1) {
+      if (supportedFormats.indexOf(transcodeDst) != -1) {
         const transcodeFunctions = UNCOMPRESSED_TRANSCODERS[transcodeDst];
         for (const transcodeSrc in transcodeFunctions) {
           if (supportedFormats.indexOf(transcodeSrc) == -1) {
@@ -76,7 +76,7 @@ function CreateTextureMessageHandler(onBufferReady) {
         buffer, // An array buffer with the file data
         supportedFormats, // The formats this device supports
         msg.data.mipmaps); // Wether or not mipmaps should be unpacked
-      
+
       const transcode = transcoders[result.format];
       if (transcode) {
         result.transcode(transcode.format, transcode.function);
@@ -299,14 +299,14 @@ const UNCOMPRESSED_TRANSCODERS = {
       const pixelCount = level.byteLength / 3;
       const src = new Uint8Array(level.buffer, level.byteOffset, level.byteLength);
       const dst = new Uint32Array(pixelCount);
-    
+
       for (let i = 0; i < pixelCount; ++i) {
         dst[i] = (src[i*3]) +         // R
                  (src[i*3+1] << 8) +  // G
                  (src[i*3+2] << 16) + // B
                  0xff000000;          // A (Always 255)
       }
-    
+
       level.buffer = dst.buffer;
       level.byteOffset = dst.byteOffset;
       level.byteLength = dst.byteLength;

@@ -96,7 +96,7 @@ class WebGPUMipmapGenerator {
     await this.shadersReady;
     let pipeline = this.pipelines[format];
     if (!pipeline) {
-      pipeline = device.createRenderPipeline({
+      pipeline = this.device.createRenderPipeline({
         vertexStage: {
           module: this.mipmapVertexShaderModule,
           entryPoint: 'main',
@@ -159,7 +159,7 @@ class WebGPUMipmapGenerator {
         layout: bindGroupLayout,
         entries: [{
           binding: 0,
-          resource: this.mipmapSampler,
+          resource: this.sampler,
         }, {
           binding: 1,
           resource: srcView,
