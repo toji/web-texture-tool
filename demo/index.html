@@ -59,6 +59,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
       const settings = {
         renderer: 'WebGL2',
         textureSet: 'ktx',
+        mipmaps: true,
         compressedFormats: true,
         pause: false,
       };
@@ -77,6 +78,11 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
         'Browser formats': 'img',
         All: 'all'
       }).onChange(onResetTextures);
+      gui.add(settings, "mipmaps").onChange(() => {
+        if (renderer) {
+          renderer.mipmaps = settings.mipmaps;
+        }
+      });
       gui.add(settings, "compressedFormats").onChange(() => {
         if (renderer) {
           renderer.textureTool.allowCompressedFormats = settings.compressedFormats;
@@ -290,6 +296,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           }
 
           renderer = newRenderer;
+          renderer.mipmaps = settings.mipmaps;
           renderer.textureTool.allowCompressedFormats = settings.compressedFormats;
 
           const canvas = newRenderer.canvas;

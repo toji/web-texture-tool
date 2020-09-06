@@ -276,10 +276,6 @@ class WebGLTextureClient {
               levelData);
         }
       }
-
-      if (gl.getError() != gl.NO_ERROR) {
-        console.warn('Error! Texture:', textureData, ", Mip: ", mipLevel);
-      }
     }
 
     if (generateMipmaps && textureImage.mipLevels.length == 1) {

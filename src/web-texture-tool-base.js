@@ -48,6 +48,7 @@ export const WebTextureFormat = {
     gl: {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8058}, // RGBA8
   },
   'rgba8unorm-srgb': {
+    // canGenerateMipmaps: true, // SHould be able to do this for WebGPU, but there seems to be an error?
     gl: {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8C43}, // SRGB8_ALPHA8
   },
   'rgb565unorm': {

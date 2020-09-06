@@ -64,6 +64,7 @@ export class WebGPURenderer {
   constructor() {
     this.canvas = document.createElement('canvas');
     this.context = this.canvas.getContext('gpupresent');
+    this.mipmaps = true;
   }
 
   async initialize() {
@@ -139,7 +140,7 @@ export class WebGPURenderer {
       sampleCount: SAMPLE_COUNT,
     });
 
-    this.tileSampler = this.device.createSampler({ minFilter: 'linear', maxFilter: 'linear', mipmapFilter: 'linear' });
+    this.tileSampler = this.device.createSampler({ minFilter: 'linear', magFilter: 'linear', mipmapFilter: 'linear' });
 
     this.frameUniformsBuffer = this.device.createBuffer({
       size: 16 * Float32Array.BYTES_PER_ELEMENT, // Enough for one matrix
@@ -213,7 +214,7 @@ export class WebGPURenderer {
   }
 
   loadTextureFromUrl(tile, url) {
-    return this.textureTool.loadTextureFromUrl(url).then((result) => {
+    return this.textureTool.loadTextureFromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
       const bindGroup = this.device.createBindGroup({
         layout: this.tilePipeline.getBindGroupLayout(0),
         entries: [{

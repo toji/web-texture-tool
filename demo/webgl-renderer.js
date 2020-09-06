@@ -60,6 +60,7 @@ export class WebGLRenderer {
   constructor(useWebGL2 = true) {
     this.canvas = document.createElement('canvas');
     this.contextId = useWebGL2 ? 'webgl2' : 'webgl';
+    this.mipmaps = true;
   }
 
   async initialize() {
@@ -118,7 +119,7 @@ export class WebGLRenderer {
   }
 
   loadTextureFromUrl(tile, url) {
-    return this.textureTool.loadTextureFromUrl(url).then((result) => {
+    return this.textureTool.loadTextureFromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
       const gl = this.gl;
 
       gl.bindTexture(gl.TEXTURE_2D, result.texture);
