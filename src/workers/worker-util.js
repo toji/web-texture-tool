@@ -52,17 +52,20 @@ function CreateTextureMessageHandler(onBufferReady) {
     }
 
     let supportedFormats = [...msg.data.supportedFormats];
+
+    // Advertise formats that can be trivially transcoded to as supported as well.
     let transcoders = {};
-    
     for (const transcodeDst in UNCOMPRESSED_TRANSCODERS) {
-      const transcodeFunctions = UNCOMPRESSED_TRANSCODERS[transcodeDst];
-      for (const transcodeSrc in transcodeFunctions) {
-        if (supportedFormats.indexOf(transcodeSrc) == -1) {
-          supportedFormats.push(transcodeSrc);
-          transcoders[transcodeSrc] = {
-            format: transcodeDst,
-            function: transcodeFunctions[transcodeSrc],
-          };
+      if (supportedFormats.indexOf(transcodeDst) == -1) {
+        const transcodeFunctions = UNCOMPRESSED_TRANSCODERS[transcodeDst];
+        for (const transcodeSrc in transcodeFunctions) {
+          if (supportedFormats.indexOf(transcodeSrc) == -1) {
+            supportedFormats.push(transcodeSrc);
+            transcoders[transcodeSrc] = {
+              format: transcodeDst,
+              function: transcodeFunctions[transcodeSrc],
+            };
+          }
         }
       }
     }
@@ -273,7 +276,8 @@ function createStructReader(layout) {
 
 // Uncompressed transcoders
 // There's a few formats that are trivial to transcode between and help patch up common formats that are missing from
-// either WebGL or WebGPU.
+// either WebGL or WebGPU. Transcoders that result in quality loss or which decompress a compressed format SHOULD NOT be
+// added here. Swizzling, unpacking, or adding a missing channel are all fair game.
 
 // Transcoders are listed as { 'destination format': { 'source format': fn(), 'source_format2': fn()... } }
 // Destinations formats should be listed in order of preference.

@@ -54,6 +54,134 @@ function calculateMipLevels(width, height) {
   return Math.floor(Math.log2(Math.max(width, height))) + 1;
 }
 
+class WebGPUMipmapGenerator {
+  constructor(device) {
+    this.device = device;
+    this.sampler = device.createSampler({minFilter: 'linear'});
+    // We'll need a new pipeline for every texture format used.
+    this.pipelines = {};
+
+    this.shadersReady = glslangModule().then((glslang) => {
+      // TODO: Convert to WGSL
+      const mipmapVertexSource = `#version 450
+        const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
+        const vec2 tex[4] = vec2[4](vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f), vec2(1.0f, 1.0f));
+        layout(location = 0) out vec2 vTex;
+        void main() {
+          vTex = tex[gl_VertexIndex];
+          gl_Position = vec4(pos[gl_VertexIndex], 0.0, 1.0);
+        }
+      `;
+
+      const mipmapFragmentSource = `#version 450
+        layout(set = 0, binding = 0) uniform sampler imgSampler;
+        layout(set = 0, binding = 1) uniform texture2D img;
+        layout(location = 0) in vec2 vTex;
+        layout(location = 0) out vec4 outColor;
+        void main() {
+          outColor = texture(sampler2D(img, imgSampler), vTex);
+        }
+      `;
+
+      this.mipmapVertexShaderModule = device.createShaderModule({
+        code: glslang.compileGLSL(mipmapVertexSource, 'vertex'),
+      });
+      this.mipmapFragmentShaderModule = device.createShaderModule({
+        code: glslang.compileGLSL(mipmapFragmentSource, 'fragment'),
+      });
+    });
+  }
+
+  async getMipmapPipeline(format) {
+    await this.shadersReady;
+    let pipeline = this.pipelines[format];
+    if (!pipeline) {
+      pipeline = device.createRenderPipeline({
+        vertexStage: {
+          module: this.mipmapVertexShaderModule,
+          entryPoint: 'main',
+        },
+        fragmentStage: {
+          module: this.mipmapFragmentShaderModule,
+          entryPoint: 'main',
+        },
+        primitiveTopology: 'triangle-strip',
+        vertexState: {
+          indexFormat: 'uint32'
+        },
+        colorStates: [{format}],
+      });
+      this.pipelines[format] = pipeline;
+    }
+    return pipeline;
+  }
+
+  /**
+   * Generates mipmaps for the given GPUTexture from the data in level 0.
+   *
+   * @param {module:External.GPUTexture} texture - Texture to generate mipmaps for.
+   * @param {object} textureDescriptor - GPUTextureDescriptor the texture was created with.
+   * @returns {module:External.GPUTexture} - The originally passed texture
+   */
+  async generateMipmap(texture, textureDescriptor) {
+    // TODO: Does this need to handle sRGB formats differently?
+    const pipeline = await this.getMipmapPipeline(textureDescriptor.format);
+
+    const textureSize = {
+      width: textureDescriptor.size.width,
+      height: textureDescriptor.size.height,
+      depth: textureDescriptor.size.depth,
+    };
+
+    const commandEncoder = this.device.createCommandEncoder({});
+    // TODO: Consider making this static.
+    const bindGroupLayout = pipeline.getBindGroupLayout(0);
+
+    let srcView = texture.createView({
+      baseMipLevel: 0,
+      mipLevelCount: 1,
+    });
+
+    for (let i = 1; i < textureDescriptor.mipLevelCount; ++i) {
+      const dstView = texture.createView({
+        baseMipLevel: i,
+        mipLevelCount: 1,
+      });
+
+      const passEncoder = commandEncoder.beginRenderPass({
+        colorAttachments: [{
+          attachment: dstView,
+          loadValue: [0, 0, 0, 0],
+        }],
+      });
+
+      const bindGroup = this.device.createBindGroup({
+        layout: bindGroupLayout,
+        entries: [{
+          binding: 0,
+          resource: this.mipmapSampler,
+        }, {
+          binding: 1,
+          resource: srcView,
+        }],
+      });
+
+      passEncoder.setPipeline(pipeline);
+      passEncoder.setBindGroup(0, bindGroup);
+      passEncoder.draw(4, 1, 0, 0);
+      passEncoder.endPass();
+
+      srcView = dstView;
+
+      textureSize.width = Math.ceil(textureSize.width / 2);
+      textureSize.height = Math.ceil(textureSize.height / 2);
+    }
+    this.device.defaultQueue.submit([commandEncoder.finish()]);
+
+    return texture;
+  }
+}
+
 /**
  * Texture Client that interfaces with WebGPU.
  */
@@ -92,53 +220,7 @@ class WebGPUTextureClient {
       }
     }
 
-    this.mipmapPipeline = null;
-    this.mipmapSampler = null;
-
-    this.mipmapReady = glslangModule().then((glslang) => {
-      // TODO: Convert to WGSL
-      const mipmapVertexSource = `#version 450
-        const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
-        const vec2 tex[4] = vec2[4](vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f), vec2(1.0f, 1.0f));
-        layout(location = 0) out vec2 vTex;
-        void main() {
-          vTex = tex[gl_VertexIndex];
-          gl_Position = vec4(pos[gl_VertexIndex], 0.0, 1.0);
-        }
-      `;
-
-      const mipmapFragmentSource = `#version 450
-        layout(set = 0, binding = 0) uniform sampler imgSampler;
-        layout(set = 0, binding = 1) uniform texture2D img;
-        layout(location = 0) in vec2 vTex;
-        layout(location = 0) out vec4 outColor;
-        void main() {
-          outColor = texture(sampler2D(img, imgSampler), vTex);
-        }
-      `;
-
-      this.mipmapPipeline = device.createRenderPipeline({
-        vertexStage: {
-          module: device.createShaderModule({
-            code: glslang.compileGLSL(mipmapVertexSource, 'vertex'),
-          }),
-          entryPoint: 'main',
-        },
-        fragmentStage: {
-          module: device.createShaderModule({
-            code: glslang.compileGLSL(mipmapFragmentSource, 'fragment'),
-          }),
-          entryPoint: 'main',
-        },
-        primitiveTopology: 'triangle-strip',
-        vertexState: {
-          indexFormat: 'uint32'
-        },
-        colorStates: [{format: 'rgba8unorm'}],
-      });
-
-      this.mipmapSampler = device.createSampler({minFilter: 'linear'});
-    });
+    this.mipmapGenerator = new WebGPUMipmapGenerator(device);
   }
 
   /**
@@ -185,7 +267,7 @@ class WebGPUTextureClient {
     this.device.defaultQueue.copyImageBitmapToTexture({imageBitmap}, {texture}, textureDescriptor.size);
 
     if (generateMipmaps) {
-      await this.generateMipmap(texture, textureDescriptor);
+      await this.mipmapGenerator.generateMipmap(texture, textureDescriptor);
     }
 
     return new WebTextureResult(texture, imageBitmap.width, imageBitmap.height, 1, 1, format);
@@ -278,77 +360,10 @@ class WebGPUTextureClient {
     if (generateMipmaps) {
       // WARNING! THIS IS CURRENTLY ASYNC!
       // That won't be the case once proper WGLS support is available.
-      this.generateMipmap(texture, textureDescriptor);
+      this.mipmapGenerator.generateMipmap(texture, textureDescriptor);
     }
 
     return new WebTextureResult(texture, textureData.width, textureData.height, 1, mipLevelCount, textureData.format);
-  }
-
-  /**
-   * Generates mipmaps for the given GPUTexture from the data in level 0.
-   *
-   * @param {module:External.GPUTexture} texture - Texture to generate mipmaps for.
-   * @param {object} textureDescriptor - GPUTextureDescriptor the texture was created with.
-   * @returns {module:External.GPUTexture} - The originally passed texture
-   */
-  async generateMipmap(texture, textureDescriptor) {
-    await this.mipmapReady;
-
-    if (!this.device) {
-      throw new Error('Cannot generate mipmaps after object has been destroyed.');
-    }
-
-    const textureSize = {
-      width: textureDescriptor.size.width,
-      height: textureDescriptor.size.height,
-      depth: textureDescriptor.size.depth,
-    };
-
-    const commandEncoder = this.device.createCommandEncoder({});
-    const bindGroupLayout = this.mipmapPipeline.getBindGroupLayout(0);
-
-    let srcView = texture.createView({
-      baseMipLevel: 0,
-      mipLevelCount: 1,
-    });
-
-    for (let i = 1; i < textureDescriptor.mipLevelCount; ++i) {
-      const dstView = texture.createView({
-        baseMipLevel: i,
-        mipLevelCount: 1,
-      });
-
-      const passEncoder = commandEncoder.beginRenderPass({
-        colorAttachments: [{
-          attachment: dstView,
-          loadValue: [0, 0, 0, 0],
-        }],
-      });
-
-      const bindGroup = this.device.createBindGroup({
-        layout: bindGroupLayout,
-        entries: [{
-          binding: 0,
-          resource: this.mipmapSampler,
-        }, {
-          binding: 1,
-          resource: srcView,
-        }],
-      });
-
-      passEncoder.setPipeline(this.mipmapPipeline);
-      passEncoder.setBindGroup(0, bindGroup);
-      passEncoder.draw(4, 1, 0, 0);
-      passEncoder.endPass();
-
-      srcView = dstView;
-
-      textureSize.width = Math.ceil(textureSize.width / 2);
-      textureSize.height = Math.ceil(textureSize.height / 2);
-    }
-    this.device.defaultQueue.submit([commandEncoder.finish()]);
-
-    return texture;
   }
 
   /**
