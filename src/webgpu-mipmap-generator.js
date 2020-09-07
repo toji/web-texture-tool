@@ -89,24 +89,40 @@ export class WebGPUMipmapGenerator {
     // TODO: Does this need to handle sRGB formats differently?
     const pipeline = await this.getMipmapPipeline(textureDescriptor.format);
 
-    const textureSize = {
-      width: textureDescriptor.size.width,
-      height: textureDescriptor.size.height,
-      depth: textureDescriptor.size.depth,
-    };
-
-    const commandEncoder = this.device.createCommandEncoder({});
-    // TODO: Consider making this static.
-    const bindGroupLayout = pipeline.getBindGroupLayout(0);
+    // If the texture was created with OUTPUT_ATTACHMENT usage we can render directly between mip levels.
+    const renderToSource = textureDescriptor.usage & GPUTextureUsage.OUTPUT_ATTACHMENT;
 
     let srcView = texture.createView({
       baseMipLevel: 0,
       mipLevelCount: 1,
     });
+    let mipTexture = texture;
+    let dstMipLevel = 1;
+
+    if (!renderToSource) {
+      // Otherwise we have to use a separate texture to render into. It can be one mip level smaller than the source
+      // texture, since we already have the top level.
+      const mipTextureDescriptor = {
+        size: {
+          width: Math.ceil(textureDescriptor.size.width / 2),
+          height: Math.ceil(textureDescriptor.size.height / 2),
+          depth: Math.ceil(textureDescriptor.size.depth / 2)
+        },
+        format: textureDescriptor.format,
+        usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.SAMPLED | GPUTextureUsage.OUTPUT_ATTACHMENT,
+        mipLevelCount: textureDescriptor.mipLevelCount - 1,
+      };
+      mipTexture = this.device.createTexture(mipTextureDescriptor);
+      dstMipLevel = 0;
+    }
+
+    const commandEncoder = this.device.createCommandEncoder({});
+    // TODO: Consider making this static.
+    const bindGroupLayout = pipeline.getBindGroupLayout(0);
 
     for (let i = 1; i < textureDescriptor.mipLevelCount; ++i) {
-      const dstView = texture.createView({
-        baseMipLevel: i,
+      const dstView = mipTexture.createView({
+        baseMipLevel: dstMipLevel++,
         mipLevelCount: 1,
       });
 
@@ -134,11 +150,37 @@ export class WebGPUMipmapGenerator {
       passEncoder.endPass();
 
       srcView = dstView;
-
-      textureSize.width = Math.ceil(textureSize.width / 2);
-      textureSize.height = Math.ceil(textureSize.height / 2);
     }
+
+    // If we didn't render to the source texture, finish by copying the mip results from the temporary mipmap texture
+    // to the source.
+    if (!renderToSource) {
+      const mipLevelSize = {
+        width:  Math.ceil(textureDescriptor.size.width / 2),
+        height:  Math.ceil(textureDescriptor.size.height / 2),
+        depth:  Math.ceil(textureDescriptor.size.depth / 2),
+      };
+
+      for (let i = 1; i < textureDescriptor.mipLevelCount; ++i) {
+        commandEncoder.copyTextureToTexture({
+          texture: mipTexture,
+          mipLevel: i-1
+        }, {
+          texture: texture,
+          mipLevel: i
+        }, mipLevelSize);
+
+        mipLevelSize.width = Math.ceil(mipLevelSize.width / 2);
+        mipLevelSize.height = Math.ceil(mipLevelSize.height / 2);
+        mipLevelSize.depth = Math.ceil(mipLevelSize.depth / 2);
+      }
+    }
+
     this.device.defaultQueue.submit([commandEncoder.finish()]);
+
+    if (!renderToSource) {
+      mipTexture.destroy();
+    }
 
     return texture;
   }
