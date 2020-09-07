@@ -118,6 +118,45 @@ export class WorkerLoader {
   }
 
   /**
+   * Load a supported file as a texture from the given Blob.
+   *
+   * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
+   * @param {Blob} blob - Blob containing the texture file data.
+   * @param {object} options - Options for how the loaded texture should be handled.
+   * @returns {Promise<module:WebTextureLoader.WebTextureResult>} - The WebTextureResult obtained from passing the
+   * parsed file data to the client.
+   */
+  async loadTextureFromBlob(client, blob, options) {
+    const buffer = await blob.arrayBuffer();
+    this.loadTextureFromBuffer(client, buffer, options);
+  }
+
+  /**
+   * Load a supported file as a texture from the given ArrayBuffer or ArrayBufferView.
+   *
+   * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
+   * @param {ArrayBuffer|ArrayBufferView} buffer - Buffer containing the texture file data.
+   * @param {object} options - Options for how the loaded texture should be handled.
+   * @returns {Promise<module:WebTextureLoader.WebTextureResult>} - The WebTextureResult obtained from passing the
+   * parsed file data to the client.
+   */
+  async loadTextureFromBuffer(client, buffer, options) {
+    const pendingTextureId = nextPendingTextureId++;
+
+    this.worker.postMessage({
+      id: pendingTextureId,
+      buffer: buffer,
+      supportedFormats: client.supportedFormats(),
+      mipmaps: options.mipmaps,
+      extension: options.extension,
+    });
+
+    return new Promise((resolve, reject) => {
+      pendingTextures[pendingTextureId] = new PendingTextureRequest(client, options, resolve, reject);
+    });
+  }
+
+  /**
    * Destroy this loader.
    * Terminates the worker and rejects any outstanding textures. The loader is unusable after calling destroy().
    *

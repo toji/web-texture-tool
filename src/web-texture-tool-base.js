@@ -108,15 +108,6 @@ export const WebTextureFormat = {
 };
 
 /**
- * Data and description for a single level of a texture.
- *
- * @typedef {object} WebTextureLevelData
- * @property {module:External.ArrayBufferView} data - Buffer containing the data for the texture level.
- * @property {number} width - Width of the texture level in pixels.
- * @property {number} height - Height of the texture level in pixels.
- */
-
-/**
  * Texture result from calling one of the WebTextureTool methods
  *
  * @property {(module:External.WebGLTexture|module:External.GPUTexture)} texture - WebGL or WebGPU texture object.
@@ -288,7 +279,7 @@ export class WebTextureTool {
   /** Loads a texture from the given URL
    *
    * @param {string} url - URL of the file to load.
-   * @param {string} textureOptions - Options for how the loaded texture should be handled.
+   * @param {object} textureOptions - Options for how the loaded texture should be handled.
    * @returns {Promise<WebTextureResult>} - Promise which resolves to the completed WebTextureResult.
    */
   async loadTextureFromUrl(url, textureOptions) {
@@ -321,6 +312,43 @@ export class WebTextureTool {
     }
 
     return loader.loadTextureFromUrl(this[CLIENT], TMP_ANCHOR.href, options);
+  }
+
+  /** Loads a texture from the given blob
+   *
+   * @param {Blob} blob - Blob containing the texture file data.
+   * @param {object} textureOptions - Options for how the loaded texture should be handled.
+   * @returns {Promise<WebTextureResult>} - Promise which resolves to the completed WebTextureResult.
+   */
+  async loadTextureFromBlob(blob, textureOptions) {
+    if (!this[CLIENT]) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
+
+    const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);
+
+    if (!options.extension && options.filename) {
+      const extIndex = options.filename.lastIndexOf('.');
+      options.extension = extIndex > -1 ? options.filename.substring(extIndex+1).toLowerCase() : null;
+    }
+
+    if (!options.extension) {
+      throw new Error('Must specify an extension when creating a texture from a blob.');
+    }
+
+    const extensionHandler = this[LOADERS][options.extension];
+    if (!extensionHandler) {
+      extensionHandler = this[LOADERS]['*'];
+    }
+
+    // Get the appropriate loader for the extension. Will instantiate the loader instance the first time it's
+    // used.
+    const loader = extensionHandler.getLoader();
+    if (!loader) {
+      throw new Error(`Failed to get loader for extension "${options.extension}"`);
+    }
+
+    return loader.loadTextureFromBlob(this[CLIENT], blob, options);
   }
 
   /**

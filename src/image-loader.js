@@ -19,16 +19,16 @@
  */
 
 const IMAGE_TEXTURE_EXTENSIONS = {
-  jpg: {format: 'rgb8unorm'},
-  jpeg: {format: 'rgb8unorm'},
-  png: {format: 'rgba8unorm'},
-  apng: {format: 'rgba8unorm'},
-  gif: {format: 'rgba8unorm'},
-  bmp: {format: 'rgb8unorm'},
-  webp: {format: 'rgba8unorm'},
-  ico: {format: 'rgba8unorm'},
-  cur: {format: 'rgba8unorm'},
-  svg: {format: 'rgba8unorm'},
+  jpg: {format: 'rgb8unorm', mimeType: 'image/jpeg'},
+  jpeg: {format: 'rgb8unorm', mimeType: 'image/jpeg'},
+  png: {format: 'rgba8unorm', mimeType: 'image/png'},
+  apng: {format: 'rgba8unorm', mimeType: 'image/apng'},
+  gif: {format: 'rgba8unorm', mimeType: 'image/gif'},
+  bmp: {format: 'rgb8unorm', mimeType: 'image/bmp'},
+  webp: {format: 'rgba8unorm', mimeType: 'image/webp'},
+  ico: {format: 'rgba8unorm', mimeType: 'image/x-icon'},
+  cur: {format: 'rgba8unorm', mimeType: 'image/x-icon'},
+  svg: {format: 'rgba8unorm', mimeType: 'image/svg+xml'},
 };
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
 
@@ -85,6 +85,60 @@ export class ImageLoader {
         imageElement.src = url;
       });
     };
+  }
+
+  /**
+   * Load a supported file as a texture from the given Blob.
+   *
+   * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
+   * @param {Blob} blob - Blob containing the texture file data.
+   * @param {object} options - Options for how the loaded texture should be handled.
+   * @returns {Promise<module:WebTextureLoader.WebTextureResult>} - The WebTextureResult obtained from passing the
+   * parsed file data to the client.
+   */
+  async loadTextureFromBlob(client, blob, options) {
+    let format = IMAGE_TEXTURE_EXTENSIONS[options.extension].format;
+
+    if (client.supportedFormatList.indexOf(format) == -1) {
+      // 'rgba8unorm' must be supported by all clients
+      format = 'rgba8unorm';
+    }
+
+    if (IMAGE_BITMAP_SUPPORTED) {
+      const imageBitmap = await createImageBitmap(blob);
+      return client.textureFromImageBitmap(imageBitmap, format, options.mipmaps);
+    } else {
+      return new Promise((resolve, reject) => {
+        const imageElement = new Image();
+        imageElement.addEventListener('load', () => {
+          resolve(client.textureFromImageElement(imageElement, format, options.mipmaps));
+        });
+        imageElement.addEventListener('error', function(err) {
+          reject(err);
+        });
+        const url = window.URL.createObjectURL(blob);
+        imageElement.src = url;
+      });
+    };
+  }
+
+  /**
+   * Load a supported file as a texture from the given ArrayBuffer or ArrayBufferView.
+   *
+   * @param {object} client - The WebTextureClient which will upload the texture data to the GPU.
+   * @param {ArrayBuffer|ArrayBufferView} buffer - Buffer containing the texture file data.
+   * @param {object} options - Options for how the loaded texture should be handled.
+   * @returns {Promise<module:WebTextureLoader.WebTextureResult>} - The WebTextureResult obtained from passing the
+   * parsed file data to the client.
+   */
+  async loadTextureFromBuffer(client, buffer, options) {
+    const mimeType = IMAGE_TEXTURE_EXTENSIONS[options.extension].mimeType;
+    if (!mimeType) {
+      throw new Error(`Unable to determine MIME type for extension "${options.extension}"`);
+    }
+
+    const blob = new Blob(buffer, {type:mimeType});
+    return this.loadTextureFromBlob(client, blob, options);
   }
 
   /**

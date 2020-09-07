@@ -89,16 +89,15 @@ export class WebGPUMipmapGenerator {
     // TODO: Does this need to handle sRGB formats differently?
     const pipeline = await this.getMipmapPipeline(textureDescriptor.format);
 
-    // If the texture was created with OUTPUT_ATTACHMENT usage we can render directly between mip levels.
-    const renderToSource = textureDescriptor.usage & GPUTextureUsage.OUTPUT_ATTACHMENT;
-
+    let mipTexture = texture;
+    let dstMipLevel = 1;
     let srcView = texture.createView({
       baseMipLevel: 0,
       mipLevelCount: 1,
     });
-    let mipTexture = texture;
-    let dstMipLevel = 1;
 
+    // If the texture was created with OUTPUT_ATTACHMENT usage we can render directly between mip levels.
+    const renderToSource = textureDescriptor.usage & GPUTextureUsage.OUTPUT_ATTACHMENT;
     if (!renderToSource) {
       // Otherwise we have to use a separate texture to render into. It can be one mip level smaller than the source
       // texture, since we already have the top level.
