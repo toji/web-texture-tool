@@ -128,7 +128,7 @@ export class WorkerLoader {
    */
   async loadTextureFromBlob(client, blob, options) {
     const buffer = await blob.arrayBuffer();
-    this.loadTextureFromBuffer(client, buffer, options);
+    return this.loadTextureFromBuffer(client, buffer, options);
   }
 
   /**

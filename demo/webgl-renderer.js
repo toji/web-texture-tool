@@ -129,6 +129,27 @@ export class WebGLRenderer {
       tile.texture = result.texture;
       return result;
     }).catch((err) => {
+      console.warn('Texture failed to load from URL: ', err);
+      // If an error occurs plug in a solid color texture to fill it's place.
+      const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
+
+      tile.texture = result.texture;
+      return result;
+    });
+  }
+
+  loadTextureFromFile(tile, file) {
+    return this.textureTool.loadTextureFromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
+      const gl = this.gl;
+
+      gl.bindTexture(gl.TEXTURE_2D, result.texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, result.mipLevels > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+
+      tile.texture = result.texture;
+      return result;
+    }).catch((err) => {
+      console.warn('Texture failed to load from file: ', err);
       // If an error occurs plug in a solid color texture to fill it's place.
       const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
 

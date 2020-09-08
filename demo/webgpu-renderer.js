@@ -236,6 +236,59 @@ export class WebGPURenderer {
 
       return result;
     }).catch((err) => {
+      console.warn('Texture failed to load from URL: ', err);
+
+      // If an error occurs plug in a solid color texture to fill it's place.
+      const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
+
+      const bindGroup = this.device.createBindGroup({
+        layout: this.tilePipeline.getBindGroupLayout(0),
+        entries: [{
+          binding: 0,
+          resource: {
+            buffer: tile.uniformBuffer,
+          },
+        },{
+          binding: 1,
+          resource: this.tileSampler,
+        }, {
+          binding: 2,
+          resource: result.texture.createView(),
+        }],
+      });
+
+      tile.bindGroup = bindGroup;
+      tile.texture = result.texture;
+
+      return result;
+    });
+  }
+
+  loadTextureFromFile(tile, file) {
+    return this.textureTool.loadTextureFromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
+      const bindGroup = this.device.createBindGroup({
+        layout: this.tilePipeline.getBindGroupLayout(0),
+        entries: [{
+          binding: 0,
+          resource: {
+            buffer: tile.uniformBuffer,
+          },
+        },{
+          binding: 1,
+          resource: this.tileSampler,
+        }, {
+          binding: 2,
+          resource: result.texture.createView(),
+        }],
+      });
+
+      tile.bindGroup = bindGroup;
+      tile.texture = result.texture;
+
+      return result;
+    }).catch((err) => {
+      console.warn('Texture failed to load from File: ', err);
+
       // If an error occurs plug in a solid color texture to fill it's place.
       const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
 
