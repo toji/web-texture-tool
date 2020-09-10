@@ -248,6 +248,7 @@ const CLIENT = Symbol('wtt/WebTextureClient');
 const LOADERS = Symbol('wtt/WebTextureLoaders');
 
 const TMP_ANCHOR = document.createElement('a');
+const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
 
 const DEFAULT_URL_OPTIONS = {
   extension: null,
@@ -391,6 +392,43 @@ export class WebTextureTool {
     }
 
     return loader.loadTextureFromBuffer(this[CLIENT], buffer, options);
+  }
+
+  /** Loads a texture from the given image element.
+   *
+   * @param {Element} element - HTML element (img, canvas, video, etc) to load as a texture.
+   * @param {object} textureOptions - Options for how the loaded texture should be handled.
+   * @returns {Promise<WebTextureResult>} - Promise which resolves to the completed WebTextureResult.
+   */
+  async loadTextureFromElement(element, textureOptions) {
+    if (!this[CLIENT]) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
+
+    const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);
+
+    if (!IMAGE_BITMAP_SUPPORTED) {
+      return this[CLIENT].textureFromImageElement(element, 'rgba8unorm', options.mipmaps);
+    }
+    const imageBitmap = await createImageBitmap(elements);
+    return this[CLIENT].textureFromImageBitmap(imageBitmap, 'rgba8unorm', options.mipmaps);
+  }
+
+  /** Loads a texture from the given image bitmap.
+   *
+   * @param {ImageBitmap} imageBitmap - Image bitmap to load as a texture.
+   * @param {object} textureOptions - Options for how the loaded texture should be handled.
+   * @returns {Promise<WebTextureResult>} - Promise which resolves to the completed WebTextureResult.
+   */
+  async loadTextureFromImageBitmap(imageBitmap, textureOptions) {
+    if (!this[CLIENT]) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
+
+    const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);
+
+    const imageBitmap = await createImageBitmap(image);
+    return this[CLIENT].textureFromImageBitmap(imageBitmap, 'rgba8unorm', options.mipmaps);
   }
 
   /**
