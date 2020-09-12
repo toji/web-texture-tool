@@ -183,7 +183,7 @@ export class WebGPURenderer {
     this.tilePipeline = this.device.createRenderPipeline({
       vertexStage: {
         module: this.device.createShaderModule({
-          code: USE_WGSL ? wgslSrc.vertex : glslang.compileGLSL(glslSrc.vertex, 'vertex')
+          code: wgslSrc.vertex, // : glslang.compileGLSL(glslSrc.vertex, 'vertex')
         }),
         entryPoint: 'main'
       },
@@ -232,7 +232,7 @@ export class WebGPURenderer {
     this.backgroundPipeline = this.device.createRenderPipeline({
       vertexStage: {
         module: this.device.createShaderModule({
-          code: USE_WGSL ? wgslSrc.backgroundVertex : glslang.compileGLSL(glslSrc.backgroundVertex, 'vertex')
+          code: wgslSrc.backgroundVertex, // : glslang.compileGLSL(glslSrc.backgroundVertex, 'vertex')
         }),
         entryPoint: 'main'
       },
