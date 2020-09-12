@@ -25,7 +25,7 @@ export class WebGPUMipmapGenerator {
 
     this.shadersReady = glslangModule().then((glslang) => {
       // TODO: Convert to WGSL
-      const mipmapVertexSource = `#version 450
+      const mipmapVertexGLSL = `#version 450
         const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
         const vec2 tex[4] = vec2[4](vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f), vec2(1.0f, 1.0f));
         layout(location = 0) out vec2 vTex;
@@ -35,7 +35,26 @@ export class WebGPUMipmapGenerator {
         }
       `;
 
-      const mipmapFragmentSource = `#version 450
+      const mipmapVertexWGSL = `
+        var<private> pos : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
+          vec2<f32>(-1.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(-1.0, -1.0), vec2<f32>(1.0, -1.0));
+        var<private> tex : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
+          vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0));
+
+        [[builtin position]] var<out> outPosition : vec4<f32>;
+        [[builtin vertex_idx]] var<in> vertexIndex : i32;
+
+        [[location 0]] var<out> vTex : vec2<f32>;
+
+        fn vtx_main() -> void {
+          vTex = tex[vertexIndex];
+          outPosition = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+          return;
+        }
+        entry_point vertex as "main" = vtx_main;
+      `;
+
+      const mipmapFragmentGLSL = `#version 450
         layout(set = 0, binding = 0) uniform sampler imgSampler;
         layout(set = 0, binding = 1) uniform texture2D img;
         layout(location = 0) in vec2 vTex;
@@ -45,11 +64,25 @@ export class WebGPUMipmapGenerator {
         }
       `;
 
+      const mipmapFragmentWGSL = `
+        [[binding 0, set 0]] var<uniform> imgSampler : sampler;
+        [[binding 1, set 0]] var<uniform> img : texture_sampled_2d<f32>;
+
+        [[location 0]] var<in> vTex : vec2<f32>;
+        [[location 0]] var<out> outColor : vec4<f32>;
+
+        fn frag_main() -> void {
+          outColor = textureSample(img, imgSampler, vTex);
+          return;
+        }
+        entry_point fragment as "main" = frag_main;
+      `;
+
       this.mipmapVertexShaderModule = device.createShaderModule({
-        code: glslang.compileGLSL(mipmapVertexSource, 'vertex'),
+        code: mipmapVertexWGSL, //glslang.compileGLSL(mipmapVertexGLSL, 'vertex'),
       });
       this.mipmapFragmentShaderModule = device.createShaderModule({
-        code: glslang.compileGLSL(mipmapFragmentSource, 'fragment'),
+        code: glslang.compileGLSL(mipmapFragmentGLSL, 'fragment'),
       });
     });
   }
