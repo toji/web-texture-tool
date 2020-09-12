@@ -19,46 +19,113 @@ import glslangModule from '../src/third-party/glslang/glslang.js'; // https://un
 
 const SAMPLE_COUNT = 4;
 
-const vertexSrc = `#version 450
-  const vec2 pos[4] = vec2[4](vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f), vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f));
-  const vec2 tex[4] = vec2[4](vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(0.0f, 0.0f), vec2(1.0f, 0.0f));
-  layout(location=0) out vec2 vTex;
+const USE_WGSL = false;
 
-  layout(std140, set=1, binding=0) uniform FrameUniforms {
-    mat4 projectionMatrix;
-  };
+const wgslSrc = {
+  vertex: `
+    var<private> pos : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
+      vec2<f32>(-1.0, -1.0), vec2<f32>(1.0, -1.0), vec2<f32>(-1.0, 1.0), vec2<f32>(1.0, 1.0)
+    );
+    var<private> tex : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
+      vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0)
+    );
 
-  layout(std140, set=0, binding=0) uniform TileUniforms {
-    mat4 modelViewMatrix;
-  };
+    [[builtin position]] var<out> Position : vec4<f32>;
+    [[builtin vertex_idx]] var<in> VertexIndex : i32;
 
-  void main() {
-    vTex = tex[gl_VertexIndex];
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos[gl_VertexIndex], 0.0, 1.0);
-  }
-`;
+    [[location 0]] var<out> vTex : vec2<f32>;
 
-const backgroundVertexSrc = `#version 450
-  const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
-  const vec2 tex[4] = vec2[4](vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(0.0f, 0.0f), vec2(1.0f, 0.0f));
-  layout(location=0) out vec2 vTex;
+    type TileUniforms = [[block]] struct {
+      [[offset 0]] modelViewMatrix : mat4x4<f32>;
+    };
+    [[binding 0, set 0]] var<uniform> tileUniforms : TileUniforms;
 
-  void main() {
-    vTex = tex[gl_VertexIndex];
-    gl_Position = vec4(pos[gl_VertexIndex], 0.0, 1.0);
-  }
-`;
+    type FrameUniforms = [[block]] struct {
+      [[offset 0]] projectionMatrix : mat4x4<f32>;
+    };
+    [[binding 0, set 1]] var<uniform> frameUniforms : FrameUniforms;
 
-const fragmentSrc = `#version 450
-  layout(set=0, binding=1) uniform sampler imgSampler;
-  layout(set=0, binding=2) uniform texture2D img;
+    fn vtx_main() -> void {
+      vTex = tex[VertexIndex];
+      Position = frameUniforms.projectionMatrix * tileUniforms.modelViewMatrix * vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+      return;
+    }
+    entry_point vertex as "main" = vtx_main;
+  `,
+  backgroundVertex: `
+    var<private> pos : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
+      vec2<f32>(-1.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(-1.0, -1.0), vec2<f32>(1.0, -1.0)
+    );
+    var<private> tex : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
+      vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0)
+    );
+    [[builtin position]] var<out> Position : vec4<f32>;
+    [[builtin vertex_idx]] var<in> VertexIndex : i32;
 
-  layout(location=0) in vec2 vTex;
-  layout(location=0) out vec4 outColor;
-  void main() {
-    outColor = texture(sampler2D(img, imgSampler), vTex);
-  }
-`;
+    [[location 0]] var<out> vTex : vec2<f32>;
+
+    fn vtx_main() -> void {
+      vTex = tex[VertexIndex];
+      Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+      return;
+    }
+    entry_point vertex as "main" = vtx_main;
+  `,
+  fragment: `
+    [[location 0]] var<out> outColor : vec4<f32>;
+    [[location 0]] var<in> vTex : vec2<f32>;
+
+    [[binding 1, set 0]] var<uniform> imgSampler : sampler;
+    [[binding 2, set 0]] var<uniform> img : texture_sampled_2d<f32>;
+
+    fn frag_main() -> void {
+      outColor = textureSample(img, sampler, vTex);
+      return;
+    }
+    entry_point fragment as "main" = frag_main;
+  `
+};
+
+const glslSrc = {
+  vertex: `#version 450
+    const vec2 pos[4] = vec2[4](vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f), vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f));
+    const vec2 tex[4] = vec2[4](vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(0.0f, 0.0f), vec2(1.0f, 0.0f));
+    layout(location=0) out vec2 vTex;
+
+    layout(std140, set=1, binding=0) uniform FrameUniforms {
+      mat4 projectionMatrix;
+    };
+
+    layout(std140, set=0, binding=0) uniform TileUniforms {
+      mat4 modelViewMatrix;
+    };
+
+    void main() {
+      vTex = tex[gl_VertexIndex];
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos[gl_VertexIndex], 0.0, 1.0);
+    }
+  `,
+  backgroundVertex: `#version 450
+    const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
+    const vec2 tex[4] = vec2[4](vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(0.0f, 0.0f), vec2(1.0f, 0.0f));
+    layout(location=0) out vec2 vTex;
+
+    void main() {
+      vTex = tex[gl_VertexIndex];
+      gl_Position = vec4(pos[gl_VertexIndex], 0.0, 1.0);
+    }
+  `,
+  fragment: `#version 450
+    layout(set=0, binding=1) uniform sampler imgSampler;
+    layout(set=0, binding=2) uniform texture2D img;
+
+    layout(location=0) in vec2 vTex;
+    layout(location=0) out vec4 outColor;
+    void main() {
+      outColor = texture(sampler2D(img, imgSampler), vTex);
+    }
+  `
+};
 
 export class WebGPURenderer {
   constructor() {
@@ -115,11 +182,15 @@ export class WebGPURenderer {
     // Tile rendering setup
     this.tilePipeline = this.device.createRenderPipeline({
       vertexStage: {
-        module: this.device.createShaderModule({ code: glslang.compileGLSL(vertexSrc, 'vertex') }),
+        module: this.device.createShaderModule({
+          code: USE_WGSL ? wgslSrc.vertex : glslang.compileGLSL(glslSrc.vertex, 'vertex')
+        }),
         entryPoint: 'main'
       },
       fragmentStage: {
-        module: this.device.createShaderModule({ code: glslang.compileGLSL(fragmentSrc, 'fragment') }),
+        module: this.device.createShaderModule({
+          code: USE_WGSL ? wgslSrc.fragment : glslang.compileGLSL(glslSrc.fragment, 'fragment')
+        }),
         entryPoint: 'main'
       },
       primitiveTopology: 'triangle-strip',
@@ -160,11 +231,15 @@ export class WebGPURenderer {
     // Background rendering setup
     this.backgroundPipeline = this.device.createRenderPipeline({
       vertexStage: {
-        module: this.device.createShaderModule({ code: glslang.compileGLSL(backgroundVertexSrc, 'vertex') }),
+        module: this.device.createShaderModule({
+          code: USE_WGSL ? wgslSrc.backgroundVertex : glslang.compileGLSL(glslSrc.backgroundVertex, 'vertex')
+        }),
         entryPoint: 'main'
       },
       fragmentStage: {
-        module: this.device.createShaderModule({ code: glslang.compileGLSL(fragmentSrc, 'fragment') }),
+        module: this.device.createShaderModule({
+          code: USE_WGSL ? wgslSrc.fragment : glslang.compileGLSL(glslSrc.fragment, 'fragment')
+        }),
         entryPoint: 'main'
       },
       primitiveTopology: 'triangle-strip',
