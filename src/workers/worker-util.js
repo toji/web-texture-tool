@@ -187,6 +187,23 @@ class WorkerTextureImageData {
 // either WebGL or WebGPU. Transcoders that result in quality loss or which decompress a compressed format SHOULD NOT be
 // added here. Swizzling, unpacking, or adding a missing channel are all fair game.
 
+function RGB8toRGBA8(level) {
+  const pixelCount = level.byteLength / 3;
+  const src = new Uint8Array(level.buffer, level.byteOffset, level.byteLength);
+  const dst = new Uint32Array(pixelCount);
+
+  for (let i = 0; i < pixelCount; ++i) {
+    dst[i] = (src[i*3]) +         // R
+             (src[i*3+1] << 8) +  // G
+             (src[i*3+2] << 16) + // B
+             0xff000000;          // A (Always 255)
+  }
+
+  level.buffer = dst.buffer;
+  level.byteOffset = dst.byteOffset;
+  level.byteLength = dst.byteLength;
+};
+
 // Transcoders are listed as { 'destination format': { 'source format': fn(), 'source_format2': fn()... } }
 // Destinations formats should be listed in order of preference.
 const UNCOMPRESSED_TRANSCODERS = {
@@ -203,21 +220,10 @@ const UNCOMPRESSED_TRANSCODERS = {
       }
     },
 
-    'rgb8unorm': (level) => {
-      const pixelCount = level.byteLength / 3;
-      const src = new Uint8Array(level.buffer, level.byteOffset, level.byteLength);
-      const dst = new Uint32Array(pixelCount);
-
-      for (let i = 0; i < pixelCount; ++i) {
-        dst[i] = (src[i*3]) +         // R
-                 (src[i*3+1] << 8) +  // G
-                 (src[i*3+2] << 16) + // B
-                 0xff000000;          // A (Always 255)
-      }
-
-      level.buffer = dst.buffer;
-      level.byteOffset = dst.byteOffset;
-      level.byteLength = dst.byteLength;
-    }
+    'rgb8unorm': RGB8toRGBA8
   },
+
+  'rgba8unorm-srgb': {
+    'rgb8unorm-srgb': RGB8toRGBA8
+  }
 }

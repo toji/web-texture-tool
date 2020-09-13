@@ -84,6 +84,8 @@ function glFormatToGPUFormat(glInternalFormat) {
       return 'rgb8unorm';
     case 0x8058: // GL_RGBA8
       return 'rgba8unorm';
+    case 0x8C41: // SRGB8
+      return 'rgb8unorm-srgb';
     case 0x8C43: // SRGB8_ALPHA8
       return 'rgba8unorm-srgb';
     default:
@@ -153,6 +155,8 @@ async function parseFile(buffer, supportedFormats, mipmaps) {
       }
     }
   }
+
+  ktxTexture.delete();
 
   return textureData;
 }

@@ -47,8 +47,12 @@ export const WebTextureFormat = {
     canGenerateMipmaps: true,
     gl: {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8058}, // RGBA8
   },
+  'rgb8unorm-srgb': {
+    canGenerateMipmaps: true,
+    gl: {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8C40}, // SRGB8
+  },
   'rgba8unorm-srgb': {
-    canGenerateMipmaps: true, // SHould be able to do this for WebGPU, but there seems to be an error?
+    canGenerateMipmaps: true,
     gl: {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8C43}, // SRGB8_ALPHA8
   },
   'rgb565unorm': {
@@ -235,7 +239,7 @@ class ExtensionHandler {
 const EXTENSION_HANDLERS = [
   new ExtensionHandler(ImageLoader.supportedExtensions(), () => new ImageLoader()),
   new ExtensionHandler(['basis'], () => new WorkerLoader('basis/basis-worker.js')),
-  new ExtensionHandler(['ktx2'], () => new WorkerLoader('ktx/ktx-worker.js')),
+  new ExtensionHandler(['ktx', 'ktx2'], () => new WorkerLoader('ktx/ktx-worker.js')),
   new ExtensionHandler(['dds'], () => new WorkerLoader('dds-worker.js')),
 ];
 
@@ -299,7 +303,7 @@ export class WebTextureTool {
       options.extension = extIndex > -1 ? TMP_ANCHOR.pathname.substring(extIndex+1).toLowerCase() : '*';
     }
 
-    const extensionHandler = this[LOADERS][options.extension];
+    let extensionHandler = this[LOADERS][options.extension];
     if (!extensionHandler) {
       extensionHandler = this[LOADERS]['*'];
     }
