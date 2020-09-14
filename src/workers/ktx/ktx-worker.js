@@ -93,6 +93,20 @@ function glFormatToGPUFormat(glInternalFormat) {
   }
 }
 
+function getTextureType(ktxTexture) {
+  if (ktxTexture.baseDepth > 1) {
+    return '3d';
+  } else if (ktxTexture.isCubemap) {
+    if (ktxTexture.isArray) {
+      return 'cube-array';
+    }
+    return 'cube';
+  } else if (ktxTexture.isArray) {
+    return '2d-array';
+  }
+  return '2d';
+}
+
 async function parseFile(buffer, supportedFormats, mipmaps) {
   const ktx = await KTX_INITIALIZED;
 
@@ -137,7 +151,15 @@ async function parseFile(buffer, supportedFormats, mipmaps) {
     throw new Error('Unable to identify texture format.');
   }
 
-  const textureData = new WorkerTextureData(format, ktxTexture.baseWidth, ktxTexture.baseHeight);
+  const type = getTextureType(ktxTexture);
+
+  const textureData = new WorkerTextureData({
+    format,
+    type,
+    width: ktxTexture.baseWidth,
+    height: ktxTexture.baseHeight,
+    depth: ktxTexture.baseDepth,
+  });
 
   // Transcode each mip level of each image.
   for (let level = 0; level < ktxTexture.numLevels; ++level) {

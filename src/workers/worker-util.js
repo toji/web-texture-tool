@@ -89,18 +89,32 @@ function CreateTextureMessageHandler(onBufferReady) {
   };
 }
 
+const DEFAULT_TEXTURE_DATA_OPTIONS = {
+  format: 'rgba8unorm',
+  type: '2d',
+  width: 1,
+  height: 1,
+  depth: 1,
+  imageData: null,
+  imageDataOptions: {},
+};
+
 class WorkerTextureData {
-  constructor(format, width, height, imageData = null, imageDataOptions = {}) {
-    this.format = format;
-    this.width = Math.max(1, width);
-    this.height = Math.max(1, height);
+  constructor(textureDataOptions) {
+    const options = Object.assign({}, DEFAULT_TEXTURE_DATA_OPTIONS, textureDataOptions);
+
+    this.format = options.format;
+    this.type = options.type;
+    this.width = Math.max(1, options.width);
+    this.height = Math.max(1, options.height);
+    this.depth = Math.max(1, options.depth);
 
     this.images = [];
     this.bufferSet = new Set();
 
     // Optionally, data for the first image's first mip level can be passed to the constructor to handle simple cases.
-    if (imageData) {
-      this.getImage(0).setMipLevel(0, imageData, imageDataOptions);
+    if (options.imageData) {
+      this.getImage(0).setMipLevel(0, options.imageData, options.imageDataOptions);
     }
   }
 
@@ -132,8 +146,10 @@ class WorkerTextureData {
     postMessage({
       id,
       format: this.format,
+      type: this.type,
       width: this.width,
       height: this.height,
+      depth: this.depth,
       images: imageList,
     }, this.bufferSet.values());
   }

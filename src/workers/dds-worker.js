@@ -305,13 +305,17 @@ function parseFile(buffer, supportedFormats, mipmaps) {
   }
 
   if (blockBytes == 0) {
-    return new WorkerTextureData(internalFormat, width, height, buffer, {
-      byteOffset: dataOffset,
-      byteLength: width * height * bytesPerPixel
+    return new WorkerTextureData({
+      format: internalFormat, width, height,
+      imageData: buffer,
+      imageDataOptions: {
+        byteOffset: dataOffset,
+        byteLength: width * height * bytesPerPixel
+      }
     });
   }
 
-  const textureData = new WorkerTextureData(internalFormat, width, height);
+  const textureData = new WorkerTextureData({format: internalFormat, width, height});
   const textureImage = textureData.getImage(0);
 
   let mipmapCount = 1;

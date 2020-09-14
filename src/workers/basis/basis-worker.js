@@ -178,11 +178,11 @@ async function transcodeBasisFile(arrayBuffer, supportedFormats, mipmaps) {
       levels = 1;
     }
 
-    const textureData = new WorkerTextureData(
-      wttFormat.format,
-      basisFile.getImageWidth(0, 0),
-      basisFile.getImageHeight(0, 0),
-    );
+    const textureData = new WorkerTextureData({
+      format: wttFormat.format,
+      width: basisFile.getImageWidth(0, 0),
+      height: basisFile.getImageHeight(0, 0),
+    });
 
     for (let i = 0; i < images; ++i) {
       const textureImage = textureData.getImage(i);
