@@ -61,6 +61,16 @@ function resolveFormat(format) {
   return wtFormat;
 }
 
+function WebTextureTypeToGLTarget(type) {
+  switch (type) {
+    case 'cube':
+      return GL.TEXTURE_CUBE_MAP;
+    case '2d':
+    default:
+      return GL.TEXTURE_2D;
+  }
+}
+
 /**
  * Variant of WebTextureClient that uses WebGL.
  */
@@ -178,7 +188,7 @@ class WebGLTextureClient {
       gl.generateMipmap(gl.TEXTURE_2D);
     }
 
-    return new WebTextureResult(texture, imageBitmap.width, imageBitmap.height, 1, mipLevels, format);
+    return new WebTextureResult(texture, {width: imageBitmap.width, height: imageBitmap.height, mipLevels, format});
   }
 
   /**
@@ -227,62 +237,75 @@ class WebGLTextureClient {
     const mipLevelCount = textureImage.mipLevels.length > 1 ? textureImage.mipLevels.length :
                                          (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
 
+    const target = WebTextureTypeToGLTarget(textureData.type);
+
     const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.bindTexture(target, texture);
 
     const useTexStorage = this.isWebGL2 && (!wtFormat.compressed || wtFormat.gl.texStorage);
     if (useTexStorage) {
-      gl.texStorage2D(gl.TEXTURE_2D, mipLevelCount, wtFormat.gl.sizedFormat, textureData.width, textureData.height);
+      gl.texStorage2D(target, mipLevelCount, wtFormat.gl.sizedFormat, textureData.width, textureData.height);
     }
 
-    for (const mipLevel of textureImage.mipLevels) {
-      let levelData;
-      switch (textureData.format) {
-        case 'rgb565unorm':
-        case 'rgba4unorm':
-        case 'rgba5551unorm':
-          levelData = new Uint16Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength / 2);
-          break;
-        default:
-          levelData = new Uint8Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength);
-          break;
-      }
+    for (let imageIndex = 0; imageIndex < textureData.images.length; ++imageIndex) {
+      const uploadTarget = target == GL.TEXTURE_CUBE_MAP ? GL.TEXTURE_CUBE_MAP_POSITIVE_X + imageIndex : target;
+      const image = textureData.images[imageIndex];
 
-      if (wtFormat.compressed) {
-        if (useTexStorage) {
-          gl.compressedTexSubImage2D(
-              gl.TEXTURE_2D, mipLevel.level,
+      for (const mipLevel of image.mipLevels) {
+        let levelData;
+        switch (textureData.format) {
+          case 'rgb565unorm':
+          case 'rgba4unorm':
+          case 'rgba5551unorm':
+            levelData = new Uint16Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength / 2);
+            break;
+          default:
+            levelData = new Uint8Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength);
+            break;
+        }
+
+        if (wtFormat.compressed) {
+          if (useTexStorage) {
+            gl.compressedTexSubImage2D(
+              uploadTarget, mipLevel.level,
               0, 0, mipLevel.width, mipLevel.height,
               wtFormat.gl.sizedFormat,
               levelData);
-        } else {
-          gl.compressedTexImage2D(
-              gl.TEXTURE_2D, mipLevel.level, wtFormat.gl.sizedFormat,
+          } else {
+            gl.compressedTexImage2D(
+              uploadTarget, mipLevel.level, wtFormat.gl.sizedFormat,
               mipLevel.width, mipLevel.height, 0,
               levelData);
-        }
-      } else {
-        if (useTexStorage) {
-          gl.texSubImage2D(
-              gl.TEXTURE_2D, mipLevel.level,
+          }
+        } else {
+          if (useTexStorage) {
+            gl.texSubImage2D(
+              uploadTarget, mipLevel.level,
               0, 0, mipLevel.width, mipLevel.height,
               wtFormat.gl.format, wtFormat.gl.type,
               levelData);
-        } else {
-          gl.texImage2D(
-              gl.TEXTURE_2D, mipLevel.level, wtFormat.gl.format,
+          } else {
+            gl.texImage2D(
+              uploadTarget, mipLevel.level, wtFormat.gl.format,
               mipLevel.width, mipLevel.height, 0,
               wtFormat.gl.format, wtFormat.gl.type,
               levelData);
+          }
         }
       }
     }
 
     if (generateMipmaps && textureImage.mipLevels.length == 1) {
-      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.generateMipmap(target);
     }
 
-    return new WebTextureResult(texture, textureData.width, textureData.height, 1, mipLevelCount, textureData.format);
+    return new WebTextureResult(texture, {
+      width: textureData.width,
+      height: textureData.height,
+      mipLevels: mipLevelCount,
+      format: textureData.format,
+      type: textureData.type,
+    });
   }
 
   /**

@@ -103,8 +103,8 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           './textures/basis/kodim20.basis',
           './textures/basis/kodim26_uastc_1024.basis',
           './textures/basis/largerblock3b4.basis',
-          './textures/ktx/color_grid.basis',
-          './textures/ktx/alpha_simple.basis',
+          './textures/ktx/khronos/color_grid.basis',
+          './textures/ktx/khronos/alpha_simple.basis',
         ],
         ktx: [
           './textures/ktx/dice-basis.ktx2',
@@ -195,7 +195,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           this.column = column;
           this.row = row;
           this.x = ((column - (tileColumns / 2)) * 2) + 1;
-          this.yOffset = (row * 2 + (column * 0.66));
+          this.yOffset = -(row * 2 + (column * 0.66));
           this.scroll = 0;
           this.modelView = mat4.create();
 
@@ -224,8 +224,8 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           }
 
           mat4.identity(this.modelView);
-          this.scroll += delta / 1000;
-          const y = ((this.yOffset + this.scroll) % (tileRows * 2)) - tileRows;
+          this.scroll -= delta / 1000;
+          const y = ((this.yOffset + this.scroll) % (tileRows * 2)) + tileRows;
           mat4.translate(this.modelView, this.modelView, [this.x, y, 0.0]);
 
           if (this.scale != this.targetScale) {
@@ -273,7 +273,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
           tile.update(delta);
         }
 
-        renderer.onFrame(projectionMat, tiles);
+        renderer.onFrame(projectionMat, tiles, delta);
       }
       window.requestAnimationFrame(onFrame);
 
@@ -322,8 +322,8 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
             const aspect = width/height;
             mat4.ortho(projectionMat,
               -tileColumns * aspect, tileColumns * aspect,
-              (tileRows - 1), -(tileRows - 1),
-              -1, 1);
+              -(tileRows - 1), (tileRows - 1),
+              -2, 2);
 
             newRenderer.onCanvasResize(width, height);
           });

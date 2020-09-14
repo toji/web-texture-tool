@@ -132,13 +132,14 @@ export class WebTextureResult {
    * @param {number} mipLevels - Number of mip levels the texture contains.
    * @param {WebTextureFormat} format - Format of the texture.
    */
-  constructor(texture, width, height, depth, mipLevels, format) {
+  constructor(texture, description = {}) {
     this.texture = texture;
-    this.width = width;
-    this.height = height;
-    this.depth = depth;
-    this.mipLevels = mipLevels;
-    this.format = format;
+    this.width = description.width || 1;
+    this.height = description.height || 1;
+    this.depth = description.depth || 1;
+    this.mipLevels = description.mipLevels || 1;
+    this.format = description.format || 'rgba8unorm';
+    this.type = description.type || '2d';
   }
 }
 

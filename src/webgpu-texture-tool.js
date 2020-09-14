@@ -137,7 +137,12 @@ class WebGPUTextureClient {
       await this.mipmapGenerator.generateMipmap(texture, textureDescriptor);
     }
 
-    return new WebTextureResult(texture, imageBitmap.width, imageBitmap.height, 1, 1, format);
+    return new WebTextureResult(texture, {
+      width: imageBitmap.width,
+      height: imageBitmap.height,
+      mipLevels: mipLevelCount,
+      format: format
+    });
   }
 
   /**
@@ -227,7 +232,12 @@ class WebGPUTextureClient {
       this.mipmapGenerator.generateMipmap(texture, textureDescriptor);
     }
 
-    return new WebTextureResult(texture, textureData.width, textureData.height, 1, mipLevelCount, textureData.format);
+    return new WebTextureResult(texture, {
+      width: textureData.width,
+      height: textureData.height,
+      mipLevels: mipLevelCount,
+      format: textureData.format
+    });
   }
 
   /**

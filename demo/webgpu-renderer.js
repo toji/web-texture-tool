@@ -20,7 +20,7 @@ import glslangModule from '../src/third-party/glslang/glslang.js'; // https://un
 const SAMPLE_COUNT = 4;
 
 const vertexSrc = `#version 450
-  const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
+  const vec2 pos[4] = vec2[4](vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f), vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f));
   const vec2 tex[4] = vec2[4](vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(0.0f, 0.0f), vec2(1.0f, 0.0f));
   layout(location=0) out vec2 vTex;
 
