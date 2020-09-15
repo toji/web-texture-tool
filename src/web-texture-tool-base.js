@@ -148,37 +148,38 @@ export class WebTextureData {
     this.format = format;
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
-    this.images = [];
+    this.levels = [];
 
     // Optionally, data for the first image's first mip level can be passed to the constructor to handle simple cases.
     if (imageData) {
-      this.getImage(0).setMipLevel(0, imageData, imageDataOptions);
+      this.getLevel(0).setSlice(0, imageData, imageDataOptions);
     }
   }
 
-  getImage(index) {
-    let image = this.images[index];
-    if (!image) {
-      image = new WebTextureImageData(this);
-      this.images[index] = image;
+  getLevel(index, options = {}) {
+    let level = this.levels[index];
+    if (!level) {
+      level = new WebTextureLevelData(this, index, options);
+      this.levels[index] = level;
     }
-    return image;
+    return level;
   }
 }
 
-class WebTextureImageData {
-  constructor(textureData) {
+class WebTextureLevelData {
+  constructor(textureData, levelIndex, options) {
     this.textureData = textureData;
-    this.mipLevels = [];
+    this.levelIndex = levelIndex;
+    this.width = Math.max(1, options.width || this.textureData.width >> levelIndex);
+    this.height = Math.max(1, options.height || this.textureData.height >> levelIndex);
+    this.slices = [];
   }
 
-  setMipLevel(level, bufferOrTypedArray, options = {}) {
-    if (this.mipLevels[level] != undefined) {
-      throw new Error('Cannot define an image mip level twice.');
+  setSlice(index, bufferOrTypedArray, options = {}) {
+    if (this.slices[index] != undefined) {
+      throw new Error('Cannot define an image slice twice.');
     }
 
-    const width = Math.max(1, options.width || this.textureData.width >> level);
-    const height = Math.max(1, options.height || this.textureData.height >> level);
     let byteOffset = options.byteOffset || 0;
     let byteLength = options.byteLength || 0;
 
@@ -196,10 +197,7 @@ class WebTextureImageData {
       byteOffset += bufferOrTypedArray.byteOffset;
     }
 
-    this.mipLevels[level] = {
-      level,
-      width,
-      height,
+    this.slices[index] = {
       buffer,
       byteOffset,
       byteLength,
@@ -426,8 +424,6 @@ export class WebTextureTool {
     }
 
     const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);
-
-    const imageBitmap = await createImageBitmap(image);
     return this[CLIENT].textureFromImageBitmap(imageBitmap, 'rgba8unorm', options.mipmaps);
   }
 

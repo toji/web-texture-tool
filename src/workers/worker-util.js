@@ -107,40 +107,51 @@ class WorkerTextureData {
     this.type = options.type;
     this.width = Math.max(1, options.width);
     this.height = Math.max(1, options.height);
-    this.depth = Math.max(1, options.depth);
 
-    this.images = [];
+    if (options.type == '3d' || options.type == '2d-array') {
+      this.depth = Math.max(1, options.depth);
+    } else if (options.type == 'cube') {
+      this.depth = 6;
+    } else if (options.type == '2d') {
+      this.depth = 1;
+    }
+
+    this.levels = [];
     this.bufferSet = new Set();
 
     // Optionally, data for the first image's first mip level can be passed to the constructor to handle simple cases.
     if (options.imageData) {
-      this.getImage(0).setMipLevel(0, options.imageData, options.imageDataOptions);
+      this.getLevel(0).setSlice(0, options.imageData, options.imageDataOptions);
     }
   }
 
-  getImage(index) {
-    let image = this.images[index];
-    if (!image) {
-      image = new WorkerTextureImageData(this);
-      this.images[index] = image;
+  getLevel(index, options = {}) {
+    let level = this.levels[index];
+    if (!level) {
+      level = new WorkerTextureLevelData(this, index, options);
+      this.levels[index] = level;
     }
-    return image;
+    return level;
   }
 
   transcode(format, fn) {
-    for (const image of this.images) {
-      for (const level of image.mipLevels) {
-        fn(level);
+    for (const level of this.levels) {
+      for (const slice of level.slices) {
+        fn(slice);
       }
     }
     this.format = format;
   }
 
   transfer(id) {
-    let imageList = [];
-    for (const image of this.images) {
-      imageList.push({
-        mipLevels: image.mipLevels
+    let levelList = [];
+    for (const level of this.levels) {
+      levelList.push({
+        levelIndex: level.levelIndex,
+        width: level.width,
+        height: level.height,
+        depth: level.depth,
+        slices: level.slices
       });
     }
     postMessage({
@@ -150,24 +161,36 @@ class WorkerTextureData {
       width: this.width,
       height: this.height,
       depth: this.depth,
-      images: imageList,
+      levels: levelList,
     }, this.bufferSet.values());
   }
 }
 
-class WorkerTextureImageData {
-  constructor(textureData) {
+class WorkerTextureLevelData {
+  constructor(textureData, levelIndex, options) {
     this.textureData = textureData;
-    this.mipLevels = [];
-  }
+    this.levelIndex = levelIndex;
+    this.width = Math.max(1, options.width || this.textureData.width >> levelIndex);
+    this.height = Math.max(1, options.height || this.textureData.height >> levelIndex);
 
-  setMipLevel(level, bufferOrTypedArray, options = {}) {
-    if (this.mipLevels[level] != undefined) {
-      throw new Error('Cannot define an image mip level twice.');
+    if (textureData.type == '3d') {
+      this.depth = Math.max(1, options.depth || this.textureData.depth >> levelIndex);
+    } else if (textureData.type == '2d-array') {
+      this.depth = this.textureData.depth;
+    } else if (textureData.type == 'cube') {
+      this.depth = 6;
+    } else if (textureData.type == '2d') {
+      this.depth = 1;
     }
 
-    const width = Math.max(1, options.width || this.textureData.width >> level);
-    const height = Math.max(1, options.height || this.textureData.height >> level);
+    this.slices = [];
+  }
+
+  setSlice(sliceIndex, bufferOrTypedArray, options = {}) {
+    if (this.slices[sliceIndex] != undefined) {
+      throw new Error('Cannot define an image slice twice.');
+    }
+
     let byteOffset = options.byteOffset || 0;
     let byteLength = options.byteLength || 0;
 
@@ -187,10 +210,7 @@ class WorkerTextureImageData {
 
     this.textureData.bufferSet.add(buffer);
 
-    this.mipLevels[level] = {
-      level,
-      width,
-      height,
+    this.slices[sliceIndex] = {
       buffer,
       byteOffset,
       byteLength,
@@ -203,9 +223,9 @@ class WorkerTextureImageData {
 // either WebGL or WebGPU. Transcoders that result in quality loss or which decompress a compressed format SHOULD NOT be
 // added here. Swizzling, unpacking, or adding a missing channel are all fair game.
 
-function RGB8toRGBA8(level) {
-  const pixelCount = level.byteLength / 3;
-  const src = new Uint8Array(level.buffer, level.byteOffset, level.byteLength);
+function RGB8toRGBA8(slice) {
+  const pixelCount = slice.byteLength / 3;
+  const src = new Uint8Array(slice.buffer, slice.byteOffset, slice.byteLength);
   const dst = new Uint32Array(pixelCount);
 
   for (let i = 0; i < pixelCount; ++i) {
@@ -215,19 +235,19 @@ function RGB8toRGBA8(level) {
              0xff000000;          // A (Always 255)
   }
 
-  level.buffer = dst.buffer;
-  level.byteOffset = dst.byteOffset;
-  level.byteLength = dst.byteLength;
+  slice.buffer = dst.buffer;
+  slice.byteOffset = dst.byteOffset;
+  slice.byteLength = dst.byteLength;
 };
 
 // Transcoders are listed as { 'destination format': { 'source format': fn(), 'source_format2': fn()... } }
 // Destinations formats should be listed in order of preference.
 const UNCOMPRESSED_TRANSCODERS = {
   'rgba8unorm': {
-    'bgra8unorm': (level) => {
+    'bgra8unorm': (slice) => {
       // Because the buffer size stays the same we can do the swizzle in place.
-      const pixelCount = level.byteLength / 4;
-      const px = new Uint32Array(level.buffer, level.byteOffset, pixelCount);
+      const pixelCount = slice.byteLength / 4;
+      const px = new Uint32Array(slice.buffer, slice.byteOffset, pixelCount);
       for (let i = 0; i < pixelCount; ++i) {
         const bgra = px[i];
         px[i] = (bgra & 0xff00ff00) +

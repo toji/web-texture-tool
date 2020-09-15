@@ -163,17 +163,17 @@ async function parseFile(buffer, supportedFormats, mipmaps) {
 
   // Transcode each mip level of each image.
   for (let level = 0; level < ktxTexture.numLevels; ++level) {
+    const textureLevel = textureData.getLevel(level);
+
     for (let layer = 0; layer < ktxTexture.numLayers; ++layer) {
       for (let face = 0; face < ktxTexture.numFaces; ++face) {
-        const imageNumber = (layer * ktxTexture.numFaces) + face;
-        const textureImage = textureData.getImage(imageNumber);
-
+        const sliceIndex = (layer * ktxTexture.numFaces) + face;
         const imageData = ktxTexture.getImageData(level, layer, face);
 
         // Copy to a new Uint8Array for transfer.
         const levelData = new Uint8Array(imageData.byteLength);
         levelData.set(imageData);
-        textureImage.setMipLevel(level, levelData);
+        textureLevel.setSlice(sliceIndex, levelData);
       }
     }
   }

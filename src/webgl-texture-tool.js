@@ -221,9 +221,7 @@ class WebGLTextureClient {
     }
 
     const wtFormat = resolveFormat(textureData.format);
-
-    // TODO: For the moment only handle first image.
-    const textureImage = textureData.images[0];
+    const baseLevel = textureData.levels[0];
 
     // Can't automatically generate mipmaps for compressed formats.
     if (wtFormat.compressed) {
@@ -234,7 +232,7 @@ class WebGLTextureClient {
     if (!this.isWebGL2 && generateMipmaps) {
       generateMipmaps = isPowerOfTwo(textureData.width) && isPowerOfTwo(textureData.height);
     }
-    const mipLevelCount = textureImage.mipLevels.length > 1 ? textureImage.mipLevels.length :
+    const mipLevelCount = textureData.levels.length > 1 ? textureData.levels.length :
                                          (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
 
     const target = WebTextureTypeToGLTarget(textureData.type);
@@ -247,61 +245,64 @@ class WebGLTextureClient {
       gl.texStorage2D(target, mipLevelCount, wtFormat.gl.sizedFormat, textureData.width, textureData.height);
     }
 
-    for (let imageIndex = 0; imageIndex < textureData.images.length; ++imageIndex) {
-      const uploadTarget = target == GL.TEXTURE_CUBE_MAP ? GL.TEXTURE_CUBE_MAP_POSITIVE_X + imageIndex : target;
-      const image = textureData.images[imageIndex];
+    for (let levelIndex = 0; levelIndex < textureData.levels.length; ++levelIndex) {
+      const level = textureData.levels[levelIndex];
 
-      for (const mipLevel of image.mipLevels) {
-        let levelData;
+      for (let sliceIndex = 0; sliceIndex < level.slices.length; ++sliceIndex) {
+        const slice = level.slices[sliceIndex];
+        const uploadTarget = target == GL.TEXTURE_CUBE_MAP ? GL.TEXTURE_CUBE_MAP_POSITIVE_X + sliceIndex : target;
+        
+        let sliceData;
         switch (textureData.format) {
           case 'rgb565unorm':
           case 'rgba4unorm':
           case 'rgba5551unorm':
-            levelData = new Uint16Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength / 2);
+            sliceData = new Uint16Array(slice.buffer, slice.byteOffset, slice.byteLength / 2);
             break;
           default:
-            levelData = new Uint8Array(mipLevel.buffer, mipLevel.byteOffset, mipLevel.byteLength);
+            sliceData = new Uint8Array(slice.buffer, slice.byteOffset, slice.byteLength);
             break;
         }
 
         if (wtFormat.compressed) {
           if (useTexStorage) {
             gl.compressedTexSubImage2D(
-              uploadTarget, mipLevel.level,
-              0, 0, mipLevel.width, mipLevel.height,
+              uploadTarget, levelIndex,
+              0, 0, level.width, level.height,
               wtFormat.gl.sizedFormat,
-              levelData);
+              sliceData);
           } else {
             gl.compressedTexImage2D(
-              uploadTarget, mipLevel.level, wtFormat.gl.sizedFormat,
-              mipLevel.width, mipLevel.height, 0,
-              levelData);
+              uploadTarget, levelIndex, wtFormat.gl.sizedFormat,
+              level.width, level.height, 0,
+              sliceData);
           }
         } else {
           if (useTexStorage) {
             gl.texSubImage2D(
-              uploadTarget, mipLevel.level,
-              0, 0, mipLevel.width, mipLevel.height,
+              uploadTarget, levelIndex,
+              0, 0, level.width, level.height,
               wtFormat.gl.format, wtFormat.gl.type,
-              levelData);
+              sliceData);
           } else {
             gl.texImage2D(
-              uploadTarget, mipLevel.level, wtFormat.gl.format,
-              mipLevel.width, mipLevel.height, 0,
+              uploadTarget, levelIndex, wtFormat.gl.format,
+              level.width, level.height, 0,
               wtFormat.gl.format, wtFormat.gl.type,
-              levelData);
+              sliceData);
           }
         }
       }
     }
 
-    if (generateMipmaps && textureImage.mipLevels.length == 1) {
+    if (generateMipmaps && textureData.levels.length == 1) {
       gl.generateMipmap(target);
     }
 
     return new WebTextureResult(texture, {
       width: textureData.width,
       height: textureData.height,
+      depth: textureData.depth,
       mipLevels: mipLevelCount,
       format: textureData.format,
       type: textureData.type,

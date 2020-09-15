@@ -184,21 +184,20 @@ async function transcodeBasisFile(arrayBuffer, supportedFormats, mipmaps) {
       height: basisFile.getImageHeight(0, 0),
     });
 
-    for (let i = 0; i < images; ++i) {
-      const textureImage = textureData.getImage(i);
+    // Transcode each mip level.
+    for (let levelIndex = 0; levelIndex < levels; ++levelIndex) {
+      const level = textureData.getLevel(levelIndex, {
+        width: basisFile.getImageWidth(0, levelIndex),
+        height: basisFile.getImageHeight(0, levelIndex)
+      });
 
-      // Transcode each mip level.
-      for (let mipLevel = 0; mipLevel < levels; ++mipLevel) {
-        const transcodeSize = basisFile.getImageTranscodedSizeInBytes(i, mipLevel, basisFormat);
+      for (let sliceIndex = 0; sliceIndex < images; ++sliceIndex) {
+        const transcodeSize = basisFile.getImageTranscodedSizeInBytes(sliceIndex, levelIndex, basisFormat);
         const levelData = new Uint8Array(transcodeSize);
-        if (!basisFile.transcodeImage(levelData, i, mipLevel, basisFormat, 1, 0)) {
+        if (!basisFile.transcodeImage(levelData, sliceIndex, levelIndex, basisFormat, 1, 0)) {
           throw new Error('transcodeImage failed');
         }
-
-        textureImage.setMipLevel(mipLevel, levelData, {
-          width: basisFile.getImageWidth(i, mipLevel),
-          height: basisFile.getImageHeight(i, mipLevel)
-        });
+        level.setSlice(sliceIndex, levelData);
       }
     }
 

@@ -315,20 +315,18 @@ function parseFile(buffer, supportedFormats, mipmaps) {
     });
   }
 
-  const textureData = new WorkerTextureData({format: internalFormat, width, height});
-  const textureImage = textureData.getImage(0);
-
   let mipmapCount = 1;
   if(header[off_flags] & DDSD_MIPMAPCOUNT && mipmaps !== false) {
       mipmapCount = Math.max(1, header[off_mipmapCount]);
   }
 
-  const mipLevels = [];
+  const textureData = new WorkerTextureData({format: internalFormat, width, height});
   for(let level = 0; level < mipmapCount; ++level) {
+    const textureLevel = textureData.getLevel(level);
     const byteLength = blockBytes ? Math.max(4, width)/4 * Math.max(4, height)/4 * blockBytes :
                                     width * height * 4;
 
-    textureImage.setMipLevel(level, buffer, {
+    textureLevel.setSlice(0, buffer, {
       byteOffset: dataOffset,
       byteLength
     });
