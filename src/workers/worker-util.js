@@ -211,6 +211,7 @@ class WorkerTextureLevelData {
     this.textureData.bufferSet.add(buffer);
 
     this.slices[sliceIndex] = {
+      sliceIndex,
       buffer,
       byteOffset,
       byteLength,

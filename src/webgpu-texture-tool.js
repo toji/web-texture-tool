@@ -189,10 +189,7 @@ class WebGPUTextureClient {
     const blockInfo = wtFormat.compressed || {blockBytes: 4, blockWidth: 1, blockHeight: 1};
     generateMipmaps = generateMipmaps && wtFormat.canGenerateMipmaps;
 
-    // TODO: For the moment only handle first image.
-    const textureImage = textureData.images[0];
-
-    const mipLevelCount = textureImage.mipLevels.length > 1 ? textureImage.mipLevels.length :
+    const mipLevelCount = textureData.levels.length > 1 ? textureData.levels.length :
                             (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
 
     let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
@@ -201,7 +198,7 @@ class WebGPUTextureClient {
       size: {
         width: Math.ceil(textureData.width / blockInfo.blockWidth) * blockInfo.blockWidth,
         height: Math.ceil(textureData.height / blockInfo.blockHeight) * blockInfo.blockHeight,
-        depth: 1
+        depth: textureData.depth
       },
       format: textureData.format,
       usage,
@@ -209,21 +206,30 @@ class WebGPUTextureClient {
     };
     const texture = this.device.createTexture(textureDescriptor);
 
-    for (const mipLevel of textureImage.mipLevels) {
+    for (const mipLevel of textureData.levels) {
       const bytesPerRow = Math.ceil(mipLevel.width / blockInfo.blockWidth) * blockInfo.blockBytes;
 
-      // TODO: It may be more efficient to upload the mip levels to a buffer and copy to the texture, but this makes
-      // the code significantly simpler and avoids an alignment issue I was seeing previously, so for now we'll take
-      // the easy route.
-      this.device.defaultQueue.writeTexture(
-        {texture: texture, mipLevel: mipLevel.level},
-        mipLevel.buffer,
-        {offset: mipLevel.byteOffset, bytesPerRow},
-        { // Copy width and height must be a multiple of the format block size;
-          width: Math.ceil(mipLevel.width / blockInfo.blockWidth) * blockInfo.blockWidth,
-          height: Math.ceil(mipLevel.height / blockInfo.blockHeight) * blockInfo.blockHeight,
-          depth: 1,
-        });
+      for (const slice of mipLevel.slices) {
+        // TODO: It may be more efficient to upload the mip levels to a buffer and copy to the texture, but this makes
+        // the code significantly simpler and avoids an alignment issue I was seeing previously, so for now we'll take
+        // the easy route.
+        this.device.defaultQueue.writeTexture(
+          {
+            texture: texture,
+            mipLevel: mipLevel.levelIndex,
+            origin: {z: slice.sliceIndex}
+          },
+          slice.buffer,
+          {
+            offset: slice.byteOffset,
+            bytesPerRow
+          },
+          { // Copy width and height must be a multiple of the format block size;
+            width: Math.ceil(mipLevel.width / blockInfo.blockWidth) * blockInfo.blockWidth,
+            height: Math.ceil(mipLevel.height / blockInfo.blockHeight) * blockInfo.blockHeight,
+            depth: 1,
+          });
+      }
     }
 
     if (generateMipmaps) {
@@ -235,8 +241,10 @@ class WebGPUTextureClient {
     return new WebTextureResult(texture, {
       width: textureData.width,
       height: textureData.height,
+      depth: textureData.depth,
       mipLevels: mipLevelCount,
-      format: textureData.format
+      format: textureData.format,
+      type: textureData.type,
     });
   }
 

@@ -227,7 +227,7 @@ export class WebGPURenderer {
           resource: this.tileSampler,
         }, {
           binding: 2,
-          resource: result.texture.createView(),
+          resource: result.texture.createView({dimension: '2d', arrayLayerCount: 1}),
         }],
       });
 
@@ -278,7 +278,7 @@ export class WebGPURenderer {
           resource: this.tileSampler,
         }, {
           binding: 2,
-          resource: result.texture.createView(),
+          resource: result.texture.createView({dimension: '2d', arrayLayerCount: 1}),
         }],
       });
 
