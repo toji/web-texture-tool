@@ -114,8 +114,6 @@ export class WebGPUMipmapGenerator {
       mipTexture = this.device.createTexture(mipTextureDescriptor);
     }
 
-    this.device.pushErrorScope("validation");
-
     const commandEncoder = this.device.createCommandEncoder({});
     // TODO: Consider making this static.
     const bindGroupLayout = pipeline.getBindGroupLayout(0);
@@ -175,6 +173,8 @@ export class WebGPUMipmapGenerator {
         depth: arrayLayerCount,
       };
 
+      // TODO: This should use textureDescriptor.mipLevelCount isntead of textureDescriptor.mipLevelCount-1, but for
+      // some reason it's telling me that I'm "touching outside the texture" if I do that.
       for (let i = 1; i < textureDescriptor.mipLevelCount-1; ++i) {
         commandEncoder.copyTextureToTexture({
           texture: mipTexture,
@@ -190,12 +190,6 @@ export class WebGPUMipmapGenerator {
     }
 
     this.device.defaultQueue.submit([commandEncoder.finish()]);
-
-    this.device.popErrorScope().then((error) => {
-      if (error) {
-        console.error("Error ", error.message, " occured with: ", textureDescriptor);
-      }
-    });
 
     if (!renderToSource) {
       mipTexture.destroy();
