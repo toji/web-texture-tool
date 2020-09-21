@@ -434,14 +434,18 @@ export class WebTextureTool {
    * @param {number} g - Green channel value
    * @param {number} b - Blue channel value
    * @param {number} [a=1.0] - Alpha channel value
+   * @param {WebTextureFormat} [format='rgba8unorm'] - Format to create the texture with
    * @returns {WebTextureResult} - Completed WebTextureResult
    */
-  createTextureFromColor(r, g, b, a = 1.0) {
+  createTextureFromColor(r, g, b, a = 1.0, format = 'rgba8unorm') {
     if (!this[CLIENT]) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
+    if (format != 'rgba8unorm' && format != 'rgba8unorm-srgb') {
+      throw new Error('createTextureFromColor only supports "rgba8unorm" and "rgba8unorm-srgb" formats');
+    }
     const data = new Uint8Array([r * 255, g * 255, b * 255, a * 255]);
-    return this[CLIENT].textureFromTextureData(new WebTextureData('rgba8unorm', 1, 1, data), false);
+    return this[CLIENT].textureFromTextureData(new WebTextureData(format, 1, 1, data), false);
   }
 
   /**
