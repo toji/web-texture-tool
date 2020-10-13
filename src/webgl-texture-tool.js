@@ -105,13 +105,13 @@ class WebGLTextureClient {
     ];
 
     if (this.isWebGL2) {
-      this.uncompressedFormatList.push('rgba8unorm-srgb');
-      this.supportedFormatList.push('rgba8unorm-srgb');
+      this.uncompressedFormatList.push('rgb8unorm-srgb', 'rgba8unorm-srgb');
+      this.supportedFormatList.push('rgb8unorm-srgb', 'rgba8unorm-srgb');
     } else {
       this.extensions.srgb = gl.getExtension('EXT_sRGB');
       if (this.extensions.srgb) {
-        this.uncompressedFormatList.push('rgba8unorm-srgb');
-        this.supportedFormatList.push('rgba8unorm-srgb');
+        this.uncompressedFormatList.push('rgb8unorm-srgb', 'rgba8unorm-srgb');
+        this.supportedFormatList.push('rgb8unorm-srgb', 'rgba8unorm-srgb');
       }
     }
 
@@ -251,7 +251,7 @@ class WebGLTextureClient {
       for (let sliceIndex = 0; sliceIndex < level.slices.length; ++sliceIndex) {
         const slice = level.slices[sliceIndex];
         const uploadTarget = target == GL.TEXTURE_CUBE_MAP ? GL.TEXTURE_CUBE_MAP_POSITIVE_X + sliceIndex : target;
-        
+
         let sliceData;
         switch (textureData.format) {
           case 'rgb565unorm':
@@ -286,7 +286,7 @@ class WebGLTextureClient {
               sliceData);
           } else {
             gl.texImage2D(
-              uploadTarget, levelIndex, wtFormat.gl.format,
+              uploadTarget, levelIndex, wtFormat.gl.sizedFormat,
               level.width, level.height, 0,
               wtFormat.gl.format, wtFormat.gl.type,
               sliceData);

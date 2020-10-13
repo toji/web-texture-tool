@@ -49,7 +49,7 @@ export const WebTextureFormat = {
   },
   'rgb8unorm-srgb': {
     canGenerateMipmaps: true,
-    gl: {format: GL.RGBA, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8C40}, // SRGB8
+    gl: {format: GL.RGB, type: GL.UNSIGNED_BYTE, sizedFormat: 0x8C40}, // SRGB8
   },
   'rgba8unorm-srgb': {
     canGenerateMipmaps: true,
