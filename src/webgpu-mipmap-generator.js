@@ -24,65 +24,46 @@ export class WebGPUMipmapGenerator {
     this.pipelines = {};
 
     this.shadersReady = glslangModule().then((glslang) => {
-      // TODO: Convert to WGSL
-      const mipmapVertexGLSL = `#version 450
-        const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
-        const vec2 tex[4] = vec2[4](vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f), vec2(1.0f, 1.0f));
-        layout(location = 0) out vec2 vTex;
-        void main() {
-          vTex = tex[gl_VertexIndex];
-          gl_Position = vec4(pos[gl_VertexIndex], 0.0, 1.0);
-        }
-      `;
-
       const mipmapVertexWGSL = `
         var<private> pos : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
           vec2<f32>(-1.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(-1.0, -1.0), vec2<f32>(1.0, -1.0));
         var<private> tex : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
           vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0));
 
-        [[builtin position]] var<out> outPosition : vec4<f32>;
-        [[builtin vertex_idx]] var<in> vertexIndex : i32;
+        [[builtin(position)]] var<out> outPosition : vec4<f32>;
+        [[builtin(vertex_idx)]] var<in> vertexIndex : i32;
 
-        [[location 0]] var<out> vTex : vec2<f32>;
+        [[location(0)]] var<out> vTex : vec2<f32>;
 
-        fn vtx_main() -> void {
+        [[stage(vertex)]]
+        fn main() -> void {
           vTex = tex[vertexIndex];
           outPosition = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
           return;
         }
-        entry_point vertex as "main" = vtx_main;
-      `;
-
-      const mipmapFragmentGLSL = `#version 450
-        layout(set = 0, binding = 0) uniform sampler imgSampler;
-        layout(set = 0, binding = 1) uniform texture2D img;
-        layout(location = 0) in vec2 vTex;
-        layout(location = 0) out vec4 outColor;
-        void main() {
-          outColor = texture(sampler2D(img, imgSampler), vTex);
-        }
       `;
 
       const mipmapFragmentWGSL = `
-        [[binding 0, set 0]] var<uniform> imgSampler : sampler;
-        [[binding 1, set 0]] var<uniform> img : texture_sampled_2d<f32>;
+        [[binding(0), set(0)]] var<uniform_constant> imgSampler : sampler;
+        [[binding(1), set(0)]] var<uniform_constant> img : texture_sampled_2d<f32>;
 
-        [[location 0]] var<in> vTex : vec2<f32>;
-        [[location 0]] var<out> outColor : vec4<f32>;
+        [[location(0)]] var<in> vTex : vec2<f32>;
+        [[location(0)]] var<out> outColor : vec4<f32>;
 
-        fn frag_main() -> void {
+        [[stage(fragment)]]
+        fn main() -> void {
           outColor = textureSample(img, imgSampler, vTex);
           return;
         }
-        entry_point fragment as "main" = frag_main;
       `;
 
       this.mipmapVertexShaderModule = device.createShaderModule({
-        code: mipmapVertexWGSL, //glslang.compileGLSL(mipmapVertexGLSL, 'vertex'),
+        code: mipmapVertexWGSL,
+        //code: glslang.compileGLSL(mipmapVertexGLSL, 'vertex'),
       });
       this.mipmapFragmentShaderModule = device.createShaderModule({
-        code: glslang.compileGLSL(mipmapFragmentGLSL, 'fragment'),
+        code: mipmapFragmentWGSL,
+        //code: glslang.compileGLSL(mipmapFragmentGLSL, 'fragment'),
       });
     });
   }

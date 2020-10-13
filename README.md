@@ -25,7 +25,7 @@ const wtt = new WebGLTextureTool(gl);
 Alternately, a `WebGPUTextureTool` can be created for use with WebGPU devices:
 
 ```js
-import { WebGPUTextureTool } from "web-texture-loader/webgpu-texture-tool.js"
+import { WebGPUTextureTool } from "web-texture-tool/webgpu-texture-tool.js"
 
 // Get a WebGPU device
 const adapter = await navigator.gpu.requestAdapter();
