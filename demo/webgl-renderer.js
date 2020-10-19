@@ -13,7 +13,7 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import {WebGLTextureTool} from '../src/web-texture-tool.js';
+import {WebGLTextureTool} from '../src/webgl-texture-tool.js';
 import {mat4} from './gl-matrix/src/gl-matrix.js';
 
 import * as Util from './gl-utils.js';

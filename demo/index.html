@@ -323,7 +323,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
             mat4.ortho(projectionMat,
               -tileColumns * aspect, tileColumns * aspect,
               -(tileRows - 1), (tileRows - 1),
-              -2, 2);
+              -10, 10);
 
             newRenderer.onCanvasResize(width, height);
           });
