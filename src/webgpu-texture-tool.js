@@ -134,7 +134,7 @@ class WebGPUTextureClient {
     this.device.defaultQueue.copyImageBitmapToTexture({imageBitmap}, {texture}, textureDescriptor.size);
 
     if (generateMipmaps) {
-      await this.mipmapGenerator.generateMipmap(texture, textureDescriptor);
+      this.mipmapGenerator.generateMipmap(texture, textureDescriptor);
     }
 
     return new WebTextureResult(texture, {
@@ -233,8 +233,6 @@ class WebGPUTextureClient {
     }
 
     if (generateMipmaps) {
-      // WARNING! THIS IS CURRENTLY ASYNC!
-      // That won't be the case once proper WGLS support is available.
       this.mipmapGenerator.generateMipmap(texture, textureDescriptor);
     }
 

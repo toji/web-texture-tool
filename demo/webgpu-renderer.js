@@ -15,11 +15,7 @@
 
 import {WebGPUTextureTool} from '../src/web-texture-tool.js';
 
-import glslangModule from '../src/third-party/glslang/glslang.js'; // https://unpkg.com/@webgpu/glslang@0.0.7/web/glslang.js
-
 const SAMPLE_COUNT = 4;
-
-const USE_WGSL = true;
 
 const wgslSrc = {
   vertex: `
@@ -86,47 +82,6 @@ const wgslSrc = {
   `
 };
 
-const glslSrc = {
-  vertex: `#version 450
-    const vec2 pos[4] = vec2[4](vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f), vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f));
-    const vec2 tex[4] = vec2[4](vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(0.0f, 0.0f), vec2(1.0f, 0.0f));
-    layout(location=0) out vec2 vTex;
-
-    layout(std140, set=1, binding=0) uniform FrameUniforms {
-      mat4 projectionMatrix;
-    };
-
-    layout(std140, set=0, binding=0) uniform TileUniforms {
-      mat4 modelViewMatrix;
-    };
-
-    void main() {
-      vTex = tex[gl_VertexIndex];
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos[gl_VertexIndex], 0.0, 1.0);
-    }
-  `,
-  backgroundVertex: `#version 450
-    const vec2 pos[4] = vec2[4](vec2(-1.0f, 1.0f), vec2(1.0f, 1.0f), vec2(-1.0f, -1.0f), vec2(1.0f, -1.0f));
-    const vec2 tex[4] = vec2[4](vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(0.0f, 0.0f), vec2(1.0f, 0.0f));
-    layout(location=0) out vec2 vTex;
-
-    void main() {
-      vTex = tex[gl_VertexIndex];
-      gl_Position = vec4(pos[gl_VertexIndex], 0.0, 1.0);
-    }
-  `,
-  fragment: `#version 450
-    layout(set=0, binding=1) uniform sampler imgSampler;
-    layout(set=0, binding=2) uniform texture2D img;
-
-    layout(location=0) in vec2 vTex;
-    layout(location=0) out vec4 outColor;
-    void main() {
-      outColor = texture(sampler2D(img, imgSampler), vTex);
-    }
-  `
-};
-
 export class WebGPURenderer {
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -176,20 +131,17 @@ export class WebGPURenderer {
 
     this.onCanvasResize(this.canvas.width, this.canvas.height);
 
-    // Shader compiler (won't be needed in the future)
-    const glslang = await glslangModule();
-
     // Tile rendering setup
     this.tilePipeline = this.device.createRenderPipeline({
       vertexStage: {
         module: this.device.createShaderModule({
-          code: USE_WGSL ? wgslSrc.vertex : glslang.compileGLSL(glslSrc.vertex, 'vertex')
+          code: wgslSrc.vertex
         }),
         entryPoint: 'main'
       },
       fragmentStage: {
         module: this.device.createShaderModule({
-          code: USE_WGSL ? wgslSrc.fragment : glslang.compileGLSL(glslSrc.fragment, 'fragment')
+          code: wgslSrc.fragment
         }),
         entryPoint: 'main'
       },
@@ -232,13 +184,13 @@ export class WebGPURenderer {
     this.backgroundPipeline = this.device.createRenderPipeline({
       vertexStage: {
         module: this.device.createShaderModule({
-          code: USE_WGSL ? wgslSrc.backgroundVertex : glslang.compileGLSL(glslSrc.backgroundVertex, 'vertex')
+          code: wgslSrc.backgroundVertex
         }),
         entryPoint: 'main'
       },
       fragmentStage: {
         module: this.device.createShaderModule({
-          code: USE_WGSL ? wgslSrc.fragment : glslang.compileGLSL(glslSrc.fragment, 'fragment')
+          code: wgslSrc.fragment
         }),
         entryPoint: 'main'
       },

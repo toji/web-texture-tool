@@ -13,65 +13,60 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.s
 
-// TODO: Replace shaders with WGSL, which won't require a separate compile
-import glslangModule from './third-party/glslang/glslang.js'; // https://unpkg.com/@webgpu/glslang@0.0.7/web/glslang.js
-
 export class WebGPUMipmapGenerator {
   constructor(device) {
     this.device = device;
     this.sampler = device.createSampler({minFilter: 'linear'});
     // We'll need a new pipeline for every texture format used.
     this.pipelines = {};
-
-    this.shadersReady = glslangModule().then((glslang) => {
-      const mipmapVertexWGSL = `
-        var<private> pos : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
-          vec2<f32>(-1.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(-1.0, -1.0), vec2<f32>(1.0, -1.0));
-        var<private> tex : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
-          vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0));
-
-        [[builtin(position)]] var<out> outPosition : vec4<f32>;
-        [[builtin(vertex_idx)]] var<in> vertexIndex : i32;
-
-        [[location(0)]] var<out> vTex : vec2<f32>;
-
-        [[stage(vertex)]]
-        fn main() -> void {
-          vTex = tex[vertexIndex];
-          outPosition = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
-          return;
-        }
-      `;
-
-      const mipmapFragmentWGSL = `
-        [[binding(0), set(0)]] var<uniform_constant> imgSampler : sampler;
-        [[binding(1), set(0)]] var<uniform_constant> img : texture_sampled_2d<f32>;
-
-        [[location(0)]] var<in> vTex : vec2<f32>;
-        [[location(0)]] var<out> outColor : vec4<f32>;
-
-        [[stage(fragment)]]
-        fn main() -> void {
-          outColor = textureSample(img, imgSampler, vTex);
-          return;
-        }
-      `;
-
-      this.mipmapVertexShaderModule = device.createShaderModule({
-        code: mipmapVertexWGSL,
-        //code: glslang.compileGLSL(mipmapVertexGLSL, 'vertex'),
-      });
-      this.mipmapFragmentShaderModule = device.createShaderModule({
-        code: mipmapFragmentWGSL,
-        //code: glslang.compileGLSL(mipmapFragmentGLSL, 'fragment'),
-      });
-    });
   }
 
-  async getMipmapPipeline(format) {
-    await this.shadersReady;
+  getMipmapPipeline(format) {
     let pipeline = this.pipelines[format];
     if (!pipeline) {
+
+      // Shaders are shared between all pipelines, so only create once.
+      if (!this.mipmapVertexShaderModule || !this.mipmapFragmentShaderModule) {
+        this.mipmapVertexShaderModule = this.device.createShaderModule({
+          code: `
+            var<private> pos : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
+              vec2<f32>(-1.0, 1.0), vec2<f32>(1.0, 1.0),
+              vec2<f32>(-1.0, -1.0), vec2<f32>(1.0, -1.0));
+            var<private> tex : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
+              vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0),
+              vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0));
+
+            [[builtin(position)]] var<out> outPosition : vec4<f32>;
+            [[builtin(vertex_idx)]] var<in> vertexIndex : i32;
+
+            [[location(0)]] var<out> vTex : vec2<f32>;
+
+            [[stage(vertex)]]
+            fn main() -> void {
+              vTex = tex[vertexIndex];
+              outPosition = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+              return;
+            }
+          `
+        });
+
+        this.mipmapFragmentShaderModule = this.device.createShaderModule({
+          code: `
+            [[binding(0), set(0)]] var<uniform_constant> imgSampler : sampler;
+            [[binding(1), set(0)]] var<uniform_constant> img : texture_sampled_2d<f32>;
+
+            [[location(0)]] var<in> vTex : vec2<f32>;
+            [[location(0)]] var<out> outColor : vec4<f32>;
+
+            [[stage(fragment)]]
+            fn main() -> void {
+              outColor = textureSample(img, imgSampler, vTex);
+              return;
+            }
+          `
+        });
+      }
+
       pipeline = this.device.createRenderPipeline({
         vertexStage: {
           module: this.mipmapVertexShaderModule,
@@ -99,9 +94,9 @@ export class WebGPUMipmapGenerator {
    * @param {object} textureDescriptor - GPUTextureDescriptor the texture was created with.
    * @returns {module:External.GPUTexture} - The originally passed texture
    */
-  async generateMipmap(texture, textureDescriptor) {
+  generateMipmap(texture, textureDescriptor) {
     // TODO: Does this need to handle sRGB formats differently?
-    const pipeline = await this.getMipmapPipeline(textureDescriptor.format);
+    const pipeline = this.getMipmapPipeline(textureDescriptor.format);
 
     if (textureDescriptor.dimension == '3d' || textureDescriptor.dimension == '1d') {
       throw new Error('Generating mipmaps for non-2d textures is currently unsupported!');
