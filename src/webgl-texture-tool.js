@@ -181,7 +181,7 @@ class WebGLTextureClient {
       gl.texStorage2D(gl.TEXTURE_2D, mipLevels, wtFormat.gl.sizedFormat, imageBitmap.width, imageBitmap.height);
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, wtFormat.gl.format, wtFormat.gl.type, imageBitmap);
     } else {
-      gl.texImage2D(gl.TEXTURE_2D, 0, wtFormat.gl.format, wtFormat.gl.format, glType, imageBitmap);
+      gl.texImage2D(gl.TEXTURE_2D, 0, wtFormat.gl.format, wtFormat.gl.format, wtFormat.gl.type, imageBitmap);
     }
 
     if (mipLevels > 1) {

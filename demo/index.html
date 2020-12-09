@@ -67,6 +67,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
       const gui = new dat.GUI();
 
       gui.add(settings, "renderer", {
+        WebGL: 'WebGL',
         WebGL2: 'WebGL2',
         WebGPU: 'WebGPU'
       }).onChange(updateRenderer);
@@ -293,8 +294,11 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
         renderer = null;
         let newRenderer = null;
         switch (settings.renderer) {
+          case 'WebGL':
+            newRenderer = new WebGLRenderer(false);
+            break;
           case 'WebGL2':
-            newRenderer = new WebGLRenderer();
+            newRenderer = new WebGLRenderer(true);
             break;
           case 'WebGPU':
             newRenderer = new WebGPURenderer();

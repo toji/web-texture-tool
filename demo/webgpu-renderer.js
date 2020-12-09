@@ -76,12 +76,12 @@ class Tile2DRenderer {
 
       [[location(0)]] var<out> vTex : vec2<f32>;
 
-      type TileUniforms = [[block]] struct {
+      [[block]] struct TileUniforms {
         [[offset(0)]] modelViewMatrix : mat4x4<f32>;
       };
       [[set(0), binding(0)]] var<uniform> tileUniforms : TileUniforms;
 
-      type FrameUniforms = [[block]] struct {
+      [[block]] struct FrameUniforms {
         [[offset(0)]] projectionMatrix : mat4x4<f32>;
       };
       [[set(1), binding(0)]] var<uniform> frameUniforms : FrameUniforms;
@@ -171,12 +171,12 @@ class TileCubeRenderer {
       [[location(0)]] var<out> vTex : vec3<f32>;
       [[builtin(position)]] var<out> Position : vec4<f32>;
 
-      type TileUniforms = [[block]] struct {
+      [[block]] struct TileUniforms {
         [[offset(0)]] modelViewMatrix : mat4x4<f32>;
       };
       [[binding(0), set(0)]] var<uniform> tileUniforms : TileUniforms;
 
-      type FrameUniforms = [[block]] struct {
+      [[block]] struct FrameUniforms {
         [[offset(0)]] projectionMatrix : mat4x4<f32>;
         [[offset(64)]] cubeSpin : mat4x4<f32>;
       };
@@ -348,7 +348,7 @@ export class WebGPURenderer {
     this.textureTool = new WebGPUTextureTool(this.device);
 
     // Swap chain setup
-    this.swapChainFormat = await this.context.getSwapChainPreferredFormat(this.device);
+    this.swapChainFormat = this.context.getSwapChainPreferredFormat(this.adapter);
     this.swapChain = this.context.configureSwapChain({
       device: this.device,
       format: this.swapChainFormat

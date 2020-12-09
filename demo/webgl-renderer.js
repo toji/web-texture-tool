@@ -31,8 +31,9 @@ const cubeSpin = mat4.create();
 mat4.scale(cubeSpin, cubeSpin, [0.7, 0.7, 0.7]);
 
 class Tile2DRenderer {
-  constructor(gl) {
+  constructor(gl, vaoExt) {
     this.gl = gl;
+    this.vaoExt = vaoExt;
 
     const vertexSrc = `
       attribute vec3 position;
@@ -63,8 +64,13 @@ class Tile2DRenderer {
 
     this.program = new Util.Program(gl, vertexSrc, fragmentSrc, attributes);
 
-    this.vao = gl.createVertexArray();
-    gl.bindVertexArray(this.vao);
+    if (vaoExt) {
+      this.vao = vaoExt.createVertexArrayOES();
+      vaoExt.bindVertexArrayOES(this.vao);
+    } else {
+      this.vao = gl.createVertexArray();
+      gl.bindVertexArray(this.vao);
+    }
 
     this.vertBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuffer);
@@ -87,7 +93,11 @@ class Tile2DRenderer {
     gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, 20, 0);
     gl.vertexAttribPointer(attributes.texCoord, 2, gl.FLOAT, false, 20, 12);
 
-    gl.bindVertexArray(null);
+    if (vaoExt) {
+      vaoExt.bindVertexArrayOES(null);
+    } else {
+      gl.bindVertexArray(null);
+    }
   }
 
   bind(projectionMatrix) {
@@ -97,7 +107,11 @@ class Tile2DRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(this.program.uniform.baseColor, 0);
 
-    gl.bindVertexArray(this.vao);
+    if (this.vaoExt) {
+      this.vaoExt.bindVertexArrayOES(this.vao);
+    } else {
+      gl.bindVertexArray(this.vao);
+    }
 
     // Draw the background
     gl.uniformMatrix4fv(this.program.uniform.projection, false, projectionMatrix);
@@ -113,8 +127,9 @@ class Tile2DRenderer {
 }
 
 class TileCubeRenderer {
-  constructor(gl) {
+  constructor(gl, vaoExt) {
     this.gl = gl;
+    this.vaoExt = vaoExt;
 
     const vertexSrc = `
       attribute vec3 position;
@@ -145,8 +160,13 @@ class TileCubeRenderer {
 
     this.program = new Util.Program(gl, vertexSrc, fragmentSrc, attributes);
 
-    this.vao = gl.createVertexArray();
-    gl.bindVertexArray(this.vao);
+    if (vaoExt) {
+      this.vao = vaoExt.createVertexArrayOES();
+      vaoExt.bindVertexArrayOES(this.vao);
+    } else {
+      this.vao = gl.createVertexArray();
+      gl.bindVertexArray(this.vao);
+    }
 
     this.vertBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuffer);
@@ -192,7 +212,11 @@ class TileCubeRenderer {
     gl.enableVertexAttribArray(attributes.position);
     gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, 12, 0);
 
-    gl.bindVertexArray(null);
+    if (vaoExt) {
+      vaoExt.bindVertexArrayOES(null);
+    } else {
+      gl.bindVertexArray(null);
+    }
   }
 
   bind(projectionMatrix, cubeSpin) {
@@ -202,7 +226,11 @@ class TileCubeRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(this.program.uniform.baseColor, 0);
 
-    gl.bindVertexArray(this.vao);
+    if (this.vaoExt) {
+      this.vaoExt.bindVertexArrayOES(this.vao);
+    } else {
+      gl.bindVertexArray(this.vao);
+    }
 
     gl.uniformMatrix4fv(this.program.uniform.projection, false, projectionMatrix);
     gl.uniformMatrix4fv(this.program.uniform.cubeSpin, false, cubeSpin);
@@ -228,7 +256,7 @@ function WebTextureTypeToGLTarget(type) {
 }
 
 export class WebGLRenderer {
-  constructor(useWebGL2 = true) {
+  constructor(useWebGL2 = false) {
     this.canvas = document.createElement('canvas');
     this.contextId = useWebGL2 ? 'webgl2' : 'webgl';
     this.mipmaps = true;
@@ -241,6 +269,10 @@ export class WebGLRenderer {
     }
     this.gl = gl;
 
+    if (this.contextId != 'webgl2') {
+      this.vaoExt = gl.getExtension('OES_vertex_array_object');
+    }
+
     this.textureTool = new WebGLTextureTool(gl);
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -251,8 +283,8 @@ export class WebGLRenderer {
       gl.ZERO, gl.ONE
     );
 
-    this.tile2DRenderer = new Tile2DRenderer(gl);
-    this.tileCubeRenderer = new TileCubeRenderer(gl);
+    this.tile2DRenderer = new Tile2DRenderer(gl, this.vaoExt);
+    this.tileCubeRenderer = new TileCubeRenderer(gl, this.vaoExt);
 
     this.checkerboard = await this.textureTool.loadTextureFromUrl('textures/checkerboard.png');
   }
@@ -363,7 +395,11 @@ export class WebGLRenderer {
       }
     }*/
 
-    gl.bindVertexArray(null);
+    if (this.vaoExt) {
+      this.vaoExt.bindVertexArrayOES(null);
+    } else {
+      gl.bindVertexArray(null);
+    }
   }
 
   destroy() {
