@@ -21,7 +21,7 @@
   },
   "ignorePatterns": [
     "basis_transcoder.js",
-    "msc_transcoder_wrapper.js",
+    "libktx.js",
     "**/third-party",
     "dds-worker.js"
   ]

@@ -28,6 +28,7 @@ importScripts('basis_transcoder.js');
 // eslint-disable-next-line new-cap
 const BASIS_TRANSCODER = new Promise((resolve) => {
   // Turns out this isn't a "real" promise, so we can't use it with await later on. Hence the wrapper promise.
+  // eslint-disable-next-line new-cap
   BASIS().then((module) => {
     module.initializeBasis();
     resolve(module.BasisFile);
@@ -188,7 +189,7 @@ async function transcodeBasisFile(arrayBuffer, supportedFormats, mipmaps) {
     for (let levelIndex = 0; levelIndex < levels; ++levelIndex) {
       const level = textureData.getLevel(levelIndex, {
         width: basisFile.getImageWidth(0, levelIndex),
-        height: basisFile.getImageHeight(0, levelIndex)
+        height: basisFile.getImageHeight(0, levelIndex),
       });
 
       for (let sliceIndex = 0; sliceIndex < images; ++sliceIndex) {
@@ -210,4 +211,4 @@ async function transcodeBasisFile(arrayBuffer, supportedFormats, mipmaps) {
   }
 }
 
-onmessage = CreateTextureMessageHandler(transcodeBasisFile);
+onmessage = createTextureMessageHandler(transcodeBasisFile);

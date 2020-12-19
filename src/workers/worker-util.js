@@ -18,21 +18,21 @@
  * @module WorkerUtil
  */
 
- /**
+/**
  * Notifies the main thread when transcoding a texture has failed to load for any reason.
  *
  * @param {number} id - Identifier for the texture being transcoded.
  * @param {string} errorMsg - Description of the error that occured
  * @returns {void}
  */
-function TextureLoadFail(id, errorMsg) {
+function textureLoadFail(id, errorMsg) {
   postMessage({
     id: id,
     error: errorMsg,
   });
 }
 
-function CreateTextureMessageHandler(onBufferReady) {
+function createTextureMessageHandler(onBufferReady) {
   return async (msg) => {
     const url = msg.data.url; // The URL of the basis image OR
     const id = msg.data.id; // A unique ID for the texture
@@ -42,19 +42,19 @@ function CreateTextureMessageHandler(onBufferReady) {
       // Make the call to fetch the file data
       const response = await fetch(url);
       if (!response.ok) {
-        return TextureLoadFail(id, `Fetch failed: ${response.status}, ${response.statusText}`);
+        return textureLoadFail(id, `Fetch failed: ${response.status}, ${response.statusText}`);
       }
       buffer = await response.arrayBuffer();
     }
 
     if (!buffer) {
-      return TextureLoadFail(id, `No url or buffer specified`);
+      return textureLoadFail(id, `No url or buffer specified`);
     }
 
-    let supportedFormats = [...msg.data.supportedFormats];
+    const supportedFormats = [...msg.data.supportedFormats];
 
     // Advertise formats that can be trivially transcoded to as supported as well.
-    let transcoders = {};
+    const transcoders = {};
     for (const transcodeDst in UNCOMPRESSED_TRANSCODERS) {
       if (supportedFormats.indexOf(transcodeDst) != -1) {
         const transcodeFunctions = UNCOMPRESSED_TRANSCODERS[transcodeDst];
@@ -73,9 +73,9 @@ function CreateTextureMessageHandler(onBufferReady) {
     try {
       // Should return a WorkerTextureData instance
       const result = await onBufferReady(
-        buffer, // An array buffer with the file data
-        supportedFormats, // The formats this device supports
-        msg.data.mipmaps); // Wether or not mipmaps should be unpacked
+          buffer, // An array buffer with the file data
+          supportedFormats, // The formats this device supports
+          msg.data.mipmaps); // Wether or not mipmaps should be unpacked
 
       const transcode = transcoders[result.format];
       if (transcode) {
@@ -83,8 +83,8 @@ function CreateTextureMessageHandler(onBufferReady) {
       }
 
       result.transfer(id);
-    } catch(err) {
-      TextureLoadFail(id, err.message);
+    } catch (err) {
+      textureLoadFail(id, err.message);
     }
   };
 }
@@ -144,7 +144,7 @@ class WorkerTextureData {
   }
 
   transfer(id) {
-    let levelList = [];
+    const levelList = [];
     for (const level of this.levels) {
       levelList.push({
         levelIndex: level.levelIndex,
@@ -224,16 +224,19 @@ class WorkerTextureLevelData {
 // either WebGL or WebGPU. Transcoders that result in quality loss or which decompress a compressed format SHOULD NOT be
 // added here. Swizzling, unpacking, or adding a missing channel are all fair game.
 
-function RGB8toRGBA8(slice) {
+function rgb8ToRgba8(slice) {
   const pixelCount = slice.byteLength / 3;
   const src = new Uint8Array(slice.buffer, slice.byteOffset, slice.byteLength);
   const dst = new Uint32Array(pixelCount);
 
+
   for (let i = 0; i < pixelCount; ++i) {
+    /* eslint-disable no-multi-spaces */
     dst[i] = (src[i*3]) +         // R
              (src[i*3+1] << 8) +  // G
              (src[i*3+2] << 16) + // B
              0xff000000;          // A (Always 255)
+    /* eslint-enable */
   }
 
   slice.buffer = dst.buffer;
@@ -257,10 +260,10 @@ const UNCOMPRESSED_TRANSCODERS = {
       }
     },
 
-    'rgb8unorm': RGB8toRGBA8
+    'rgb8unorm': rgb8ToRgba8,
   },
 
   'rgba8unorm-srgb': {
-    'rgb8unorm-srgb': RGB8toRGBA8
+    'rgb8unorm-srgb': rgb8ToRgba8,
   }
-}
+};

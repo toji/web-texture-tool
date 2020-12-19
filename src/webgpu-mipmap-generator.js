@@ -24,7 +24,6 @@ export class WebGPUMipmapGenerator {
   getMipmapPipeline(format) {
     let pipeline = this.pipelines[format];
     if (!pipeline) {
-
       // Shaders are shared between all pipelines, so only create once.
       if (!this.mipmapVertexShaderModule || !this.mipmapFragmentShaderModule) {
         this.mipmapVertexShaderModule = this.device.createShaderModule({
@@ -47,7 +46,7 @@ export class WebGPUMipmapGenerator {
               outPosition = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
               return;
             }
-          `
+          `,
         });
 
         this.mipmapFragmentShaderModule = this.device.createShaderModule({
@@ -63,7 +62,7 @@ export class WebGPUMipmapGenerator {
               outColor = textureSample(img, imgSampler, vTex);
               return;
             }
-          `
+          `,
         });
       }
 
@@ -78,7 +77,7 @@ export class WebGPUMipmapGenerator {
         },
         primitiveTopology: 'triangle-strip',
         vertexState: {
-          indexFormat: 'uint32'
+          indexFormat: 'uint32',
         },
         colorStates: [{format}],
       });
@@ -143,7 +142,7 @@ export class WebGPUMipmapGenerator {
           mipLevelCount: 1,
           dimension: '2d',
           baseArrayLayer: arrayLayer,
-          arrayLayerCount: 1
+          arrayLayerCount: 1,
         });
 
         const passEncoder = commandEncoder.beginRenderPass({
@@ -187,10 +186,10 @@ export class WebGPUMipmapGenerator {
       for (let i = 1; i < textureDescriptor.mipLevelCount-1; ++i) {
         commandEncoder.copyTextureToTexture({
           texture: mipTexture,
-          mipLevel: i-1
+          mipLevel: i-1,
         }, {
           texture: texture,
-          mipLevel: i
+          mipLevel: i,
         }, mipLevelSize);
 
         mipLevelSize.width = Math.ceil(mipLevelSize.width / 2);

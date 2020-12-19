@@ -137,7 +137,7 @@ export class ImageLoader {
       throw new Error(`Unable to determine MIME type for extension "${options.extension}"`);
     }
 
-    const blob = new Blob(buffer, {type:mimeType});
+    const blob = new Blob(buffer, {type: mimeType});
     return this.loadTextureFromBlob(client, blob, options);
   }
 

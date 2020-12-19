@@ -78,3 +78,11 @@
  * @type {object}
  * @see {@link https://heycam.github.io/webidl/#ArrayBufferView}
  */
+
+/**
+ * A serializable byte sequence
+ *
+ * @external Blob
+ * @type {object}
+ * @see {@link https://w3c.github.io/FileAPI/#dfn-Blob}
+ */

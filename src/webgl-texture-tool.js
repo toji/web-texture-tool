@@ -61,7 +61,7 @@ function resolveFormat(format) {
   return wtFormat;
 }
 
-function WebTextureTypeToGLTarget(type) {
+function webTextureTypeToGLTarget(type) {
   switch (type) {
     case 'cube':
       return GL.TEXTURE_CUBE_MAP;
@@ -221,7 +221,6 @@ class WebGLTextureClient {
     }
 
     const wtFormat = resolveFormat(textureData.format);
-    const baseLevel = textureData.levels[0];
 
     // Can't automatically generate mipmaps for compressed formats.
     if (wtFormat.compressed) {
@@ -233,9 +232,9 @@ class WebGLTextureClient {
       generateMipmaps = isPowerOfTwo(textureData.width) && isPowerOfTwo(textureData.height);
     }
     const mipLevelCount = textureData.levels.length > 1 ? textureData.levels.length :
-                                         (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
+                          (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
 
-    const target = WebTextureTypeToGLTarget(textureData.type);
+    const target = webTextureTypeToGLTarget(textureData.type);
 
     const texture = gl.createTexture();
     gl.bindTexture(target, texture);
@@ -267,29 +266,29 @@ class WebGLTextureClient {
         if (wtFormat.compressed) {
           if (useTexStorage) {
             gl.compressedTexSubImage2D(
-              uploadTarget, levelIndex,
-              0, 0, level.width, level.height,
-              wtFormat.gl.sizedFormat,
-              sliceData);
+                uploadTarget, levelIndex,
+                0, 0, level.width, level.height,
+                wtFormat.gl.sizedFormat,
+                sliceData);
           } else {
             gl.compressedTexImage2D(
-              uploadTarget, levelIndex, wtFormat.gl.sizedFormat,
-              level.width, level.height, 0,
-              sliceData);
+                uploadTarget, levelIndex, wtFormat.gl.sizedFormat,
+                level.width, level.height, 0,
+                sliceData);
           }
         } else {
           if (useTexStorage) {
             gl.texSubImage2D(
-              uploadTarget, levelIndex,
-              0, 0, level.width, level.height,
-              wtFormat.gl.format, wtFormat.gl.type,
-              sliceData);
+                uploadTarget, levelIndex,
+                0, 0, level.width, level.height,
+                wtFormat.gl.format, wtFormat.gl.type,
+                sliceData);
           } else {
             gl.texImage2D(
-              uploadTarget, levelIndex, wtFormat.gl.sizedFormat,
-              level.width, level.height, 0,
-              wtFormat.gl.format, wtFormat.gl.type,
-              sliceData);
+                uploadTarget, levelIndex, wtFormat.gl.sizedFormat,
+                level.width, level.height, 0,
+                wtFormat.gl.format, wtFormat.gl.type,
+                sliceData);
           }
         }
       }

@@ -121,7 +121,7 @@ class WebGPUTextureClient {
     }
     const mipLevelCount = generateMipmaps ? calculateMipLevels(imageBitmap.width, imageBitmap.height) : 1;
 
-    let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
+    const usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
 
     const textureDescriptor = {
       size: {width: imageBitmap.width, height: imageBitmap.height, depth: 1},
@@ -141,7 +141,7 @@ class WebGPUTextureClient {
       width: imageBitmap.width,
       height: imageBitmap.height,
       mipLevels: mipLevelCount,
-      format: format
+      format: format,
     });
   }
 
@@ -192,13 +192,13 @@ class WebGPUTextureClient {
     const mipLevelCount = textureData.levels.length > 1 ? textureData.levels.length :
                             (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
 
-    let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
+    const usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
 
     const textureDescriptor = {
       size: {
         width: Math.ceil(textureData.width / blockInfo.blockWidth) * blockInfo.blockWidth,
         height: Math.ceil(textureData.height / blockInfo.blockHeight) * blockInfo.blockHeight,
-        depth: textureData.depth
+        depth: textureData.depth,
       },
       format: textureData.format,
       usage,
@@ -214,21 +214,21 @@ class WebGPUTextureClient {
         // the code significantly simpler and avoids an alignment issue I was seeing previously, so for now we'll take
         // the easy route.
         this.device.defaultQueue.writeTexture(
-          {
-            texture: texture,
-            mipLevel: mipLevel.levelIndex,
-            origin: {z: slice.sliceIndex}
-          },
-          slice.buffer,
-          {
-            offset: slice.byteOffset,
-            bytesPerRow
-          },
-          { // Copy width and height must be a multiple of the format block size;
-            width: Math.ceil(mipLevel.width / blockInfo.blockWidth) * blockInfo.blockWidth,
-            height: Math.ceil(mipLevel.height / blockInfo.blockHeight) * blockInfo.blockHeight,
-            depth: 1,
-          });
+            {
+              texture: texture,
+              mipLevel: mipLevel.levelIndex,
+              origin: {z: slice.sliceIndex},
+            },
+            slice.buffer,
+            {
+              offset: slice.byteOffset,
+              bytesPerRow,
+            },
+            { // Copy width and height must be a multiple of the format block size;
+              width: Math.ceil(mipLevel.width / blockInfo.blockWidth) * blockInfo.blockWidth,
+              height: Math.ceil(mipLevel.height / blockInfo.blockHeight) * blockInfo.blockHeight,
+              depth: 1,
+            });
       }
     }
 

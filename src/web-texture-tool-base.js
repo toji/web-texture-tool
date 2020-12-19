@@ -65,7 +65,7 @@ export const WebTextureFormat = {
   },
   'rgba5551unorm': {
     canGenerateMipmaps: true,
-    gl: {format: GL.RGBA, type: GL.UNSIGNED_SHORT_5_5_5_1, sizedFormat: GL.RGB5_A1 },
+    gl: {format: GL.RGBA, type: GL.UNSIGNED_SHORT_5_5_5_1, sizedFormat: GL.RGB5_A1},
   },
 
   'bgra8unorm': {canGenerateMipmaps: true}, // No WebGL equivalent
@@ -408,7 +408,7 @@ export class WebTextureTool {
     if (!IMAGE_BITMAP_SUPPORTED) {
       return this[CLIENT].textureFromImageElement(element, 'rgba8unorm', options.mipmaps);
     }
-    const imageBitmap = await createImageBitmap(elements);
+    const imageBitmap = await createImageBitmap(element);
     return this[CLIENT].textureFromImageBitmap(imageBitmap, 'rgba8unorm', options.mipmaps);
   }
 

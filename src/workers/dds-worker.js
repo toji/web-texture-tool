@@ -339,4 +339,4 @@ function parseFile(buffer, supportedFormats, mipmaps) {
   return textureData;
 }
 
-onmessage = CreateTextureMessageHandler(parseFile);
+onmessage = createTextureMessageHandler(parseFile);

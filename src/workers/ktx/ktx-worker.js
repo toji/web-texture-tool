@@ -28,6 +28,7 @@ importScripts('libktx.js');
 // eslint-disable-next-line new-cap
 const KTX_INITIALIZED = new Promise((resolve) => {
   // Turns out this isn't a "real" promise, so we can't use it with await later on. Hence the wrapper promise.
+  // eslint-disable-next-line new-cap
   LIBKTX().then(resolve);
 });
 
@@ -55,6 +56,7 @@ const WTT_FORMAT_MAP = {
 // from needing to store a fallback JPG/PNG and the download size will still likely be smaller.
 const alphaFormatPreference = [
   'ETC2_RGBA', 'BC7_M5_RGBA', 'BC3_RGBA', 'ASTC_4x4_RGBA', 'PVRTC1_4_RGBA', 'RGBA32'];
+// eslint-disable-next-line no-unused-vars
 const opaqueFormatPreference = [
   'ETC1_RGB', 'BC7_M5_RGBA', 'BC1_RGB', 'ETC2_RGBA', 'ASTC_4x4_RGBA', 'PVRTC1_4_RGB', 'RGB565', 'RGBA32'];
 
@@ -110,6 +112,7 @@ function getTextureType(ktxTexture) {
 async function parseFile(buffer, supportedFormats, mipmaps) {
   const ktx = await KTX_INITIALIZED;
 
+  // eslint-disable-next-line new-cap
   const ktxTexture = new ktx.ktxTexture(new Uint8Array(buffer));
 
   let format;
@@ -183,4 +186,4 @@ async function parseFile(buffer, supportedFormats, mipmaps) {
   return textureData;
 }
 
-onmessage = CreateTextureMessageHandler(parseFile);
+onmessage = createTextureMessageHandler(parseFile);
