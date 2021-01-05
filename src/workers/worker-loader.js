@@ -81,7 +81,7 @@ function onWorkerMessage(msg) {
  */
 export class WorkerLoader {
   /**
-   * Creates a BasisLoader instance.
+   * Creates a WorkerLoader instance.
    *
    * @param {string} relativeWorkerPath - Path to the worker script to load, relative to this file.
    */

@@ -18,17 +18,15 @@
  * @module ImageLoader
  */
 
-const IMAGE_TEXTURE_EXTENSIONS = {
-  jpg: {format: 'rgb8unorm', mimeType: 'image/jpeg'},
-  jpeg: {format: 'rgb8unorm', mimeType: 'image/jpeg'},
-  png: {format: 'rgba8unorm', mimeType: 'image/png'},
-  apng: {format: 'rgba8unorm', mimeType: 'image/apng'},
-  gif: {format: 'rgba8unorm', mimeType: 'image/gif'},
-  bmp: {format: 'rgb8unorm', mimeType: 'image/bmp'},
-  webp: {format: 'rgba8unorm', mimeType: 'image/webp'},
-  ico: {format: 'rgba8unorm', mimeType: 'image/x-icon'},
-  cur: {format: 'rgba8unorm', mimeType: 'image/x-icon'},
-  svg: {format: 'rgba8unorm', mimeType: 'image/svg+xml'},
+const MIME_TYPE_FORMATS = {
+  'image/jpeg': 'rgb8unorm',
+  'image/png': 'rgba8unorm',
+  'image/apng': 'rgba8unorm',
+  'image/gif': 'rgba8unorm',
+  'image/bmp': 'rgb8unorm',
+  'image/webp': 'rgba8unorm',
+  'image/x-icon': 'rgba8unorm',
+  'image/svg+xml': 'rgba8unorm',
 };
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
 
@@ -44,12 +42,12 @@ export class ImageLoader {
   }
 
   /**
-   * Which file extensions this loader supports.
+   * Which MIME types this loader supports.
    *
-   * @returns {Array<string>} - An array of the file extensions this loader supports.
+   * @returns {Array<string>} - An array of the MIME types this loader supports.
    */
-  static supportedExtensions() {
-    return Object.keys(IMAGE_TEXTURE_EXTENSIONS);
+  static supportedMIMETypes() {
+    return Object.keys(MIME_TYPE_FORMATS);
   }
 
   /**
@@ -62,7 +60,7 @@ export class ImageLoader {
    * parsed file data to the client.
    */
   async loadTextureFromUrl(client, url, options) {
-    let format = IMAGE_TEXTURE_EXTENSIONS[options.extension].format;
+    let format = MIME_TYPE_FORMATS[options.mimeType];
 
     if (client.supportedFormatList.indexOf(format) == -1) {
       // 'rgba8unorm' must be supported by all clients
@@ -97,7 +95,7 @@ export class ImageLoader {
    * parsed file data to the client.
    */
   async loadTextureFromBlob(client, blob, options) {
-    let format = IMAGE_TEXTURE_EXTENSIONS[options.extension].format;
+    let format = MIME_TYPE_FORMATS[blob.type];
 
     if (client.supportedFormatList.indexOf(format) == -1) {
       // 'rgba8unorm' must be supported by all clients
@@ -132,12 +130,7 @@ export class ImageLoader {
    * parsed file data to the client.
    */
   async loadTextureFromBuffer(client, buffer, options) {
-    const mimeType = IMAGE_TEXTURE_EXTENSIONS[options.extension].mimeType;
-    if (!mimeType) {
-      throw new Error(`Unable to determine MIME type for extension "${options.extension}"`);
-    }
-
-    const blob = new Blob(buffer, {type: mimeType});
+    const blob = new Blob(buffer, {type: options.mimeType});
     return this.loadTextureFromBlob(client, blob, options);
   }
 

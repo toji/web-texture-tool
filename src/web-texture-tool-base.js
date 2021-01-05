@@ -215,8 +215,8 @@ class ExtensionHandler {
    * @param {Array<string>} extensions - List of extensions that this loader can handle.
    * @param {Function} callback - Callback which returns an instance of the loader.
    */
-  constructor(extensions, callback) {
-    this.extensions = extensions;
+  constructor(mimeTypes, callback) {
+    this.mimeTypes = mimeTypes;
     this.callback = callback;
     this.loader = null;
   }
@@ -235,11 +235,28 @@ class ExtensionHandler {
   }
 }
 
+const EXTENSION_MIME_TYPES = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  apng: 'image/apng',
+  gif: 'image/gif',
+  bmp: 'image/bmp',
+  webp: 'image/webp',
+  ico: 'image/x-icon',
+  cur: 'image/x-icon',
+  svg: 'image/svg+xml',
+  basis: 'image/basis',
+  ktx: 'image/ktx',
+  ktx2: 'image/ktx2',
+  dds: 'image/vnd.ms-dds',
+};
+
 const EXTENSION_HANDLERS = [
-  new ExtensionHandler(ImageLoader.supportedExtensions(), () => new ImageLoader()),
-  new ExtensionHandler(['basis'], () => new WorkerLoader('basis/basis-worker.js')),
-  new ExtensionHandler(['ktx', 'ktx2'], () => new WorkerLoader('ktx/ktx-worker.js')),
-  new ExtensionHandler(['dds'], () => new WorkerLoader('dds-worker.js')),
+  new ExtensionHandler(ImageLoader.supportedMIMETypes(), () => new ImageLoader()),
+  new ExtensionHandler(['image/basis'], () => new WorkerLoader('basis/basis-worker.js')),
+  new ExtensionHandler(['image/ktx', 'image/ktx2'], () => new WorkerLoader('ktx/ktx-worker.js')),
+  new ExtensionHandler(['image/vnd.ms-dds'], () => new WorkerLoader('dds-worker.js')),
 ];
 
 const CLIENT = Symbol('wtt/WebTextureClient');
@@ -252,6 +269,25 @@ const DEFAULT_URL_OPTIONS = {
   extension: null,
   mipmaps: true,
 };
+
+function getMimeTypeLoader(wtt, mimeType) {
+  if (!mimeType) {
+    throw new Error('A valid MIME type must be specified.');
+  }
+
+  let typeHandler = wtt[LOADERS][mimeType];
+  if (!typeHandler) {
+    typeHandler = wtt[LOADERS]['*'];
+  }
+
+  // Get the appropriate loader for the extension. Will instantiate the loader instance the first time it's
+  // used.
+  const loader = typeHandler.getLoader();
+  if (!loader) {
+    throw new Error(`Failed to get loader for MIME type "${mimeType}"`);
+  }
+  return loader;
+}
 
 /**
  * Base texture tool class.
@@ -270,8 +306,8 @@ export class WebTextureTool {
 
     // Map every available extension to it's associated handler
     for (const extensionHandler of EXTENSION_HANDLERS) {
-      for (const extension of extensionHandler.extensions) {
-        this[LOADERS][extension] = extensionHandler;
+      for (const mimeType of extensionHandler.mimeTypes) {
+        this[LOADERS][mimeType] = extensionHandler;
       }
     }
 
@@ -297,24 +333,14 @@ export class WebTextureTool {
     TMP_ANCHOR.href = url;
 
     // If an explicit extension wasn't provided, examine the URL to determine one.
-    if (!options.extension) {
+    if (!options.mimeType) {
       // Isolate just the pathname from the given URL, then split the extension off of that.
       const extIndex = TMP_ANCHOR.pathname.lastIndexOf('.');
-      options.extension = extIndex > -1 ? TMP_ANCHOR.pathname.substring(extIndex+1).toLowerCase() : '*';
+      const extension = extIndex > -1 ? TMP_ANCHOR.pathname.substring(extIndex+1).toLowerCase() : '*';
+      options.mimeType = EXTENSION_MIME_TYPES[extension];
     }
 
-    let extensionHandler = this[LOADERS][options.extension];
-    if (!extensionHandler) {
-      extensionHandler = this[LOADERS]['*'];
-    }
-
-    // Get the appropriate loader for the extension. Will instantiate the loader instance the first time it's
-    // used.
-    const loader = extensionHandler.getLoader();
-    if (!loader) {
-      throw new Error(`Failed to get loader for extension "${options.extension}"`);
-    }
-
+    const loader = getMimeTypeLoader(this, options.mimeType);
     return loader.loadTextureFromUrl(this[CLIENT], TMP_ANCHOR.href, options);
   }
 
@@ -331,27 +357,7 @@ export class WebTextureTool {
 
     const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);
 
-    if (!options.extension && options.filename) {
-      const extIndex = options.filename.lastIndexOf('.');
-      options.extension = extIndex > -1 ? options.filename.substring(extIndex+1).toLowerCase() : null;
-    }
-
-    if (!options.extension) {
-      throw new Error('Must specify an extension when creating a texture from a blob.');
-    }
-
-    const extensionHandler = this[LOADERS][options.extension];
-    if (!extensionHandler) {
-      extensionHandler = this[LOADERS]['*'];
-    }
-
-    // Get the appropriate loader for the extension. Will instantiate the loader instance the first time it's
-    // used.
-    const loader = extensionHandler.getLoader();
-    if (!loader) {
-      throw new Error(`Failed to get loader for extension "${options.extension}"`);
-    }
-
+    const loader = getMimeTypeLoader(this, blob.type);
     return loader.loadTextureFromBlob(this[CLIENT], blob, options);
   }
 
@@ -368,27 +374,13 @@ export class WebTextureTool {
 
     const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);
 
-    if (!options.extension && options.filename) {
+    if (!options.mimeType && options.filename) {
       const extIndex = options.filename.lastIndexOf('.');
-      options.extension = extIndex > -1 ? options.filename.substring(extIndex+1).toLowerCase() : null;
+      const extension = extIndex > -1 ? options.filename.substring(extIndex+1).toLowerCase() : null;
+      options.mimeType = EXTENSION_MIME_TYPES[extension];
     }
 
-    if (!options.extension) {
-      throw new Error('Must specify an extension when creating a texture from a blob.');
-    }
-
-    const extensionHandler = this[LOADERS][options.extension];
-    if (!extensionHandler) {
-      extensionHandler = this[LOADERS]['*'];
-    }
-
-    // Get the appropriate loader for the extension. Will instantiate the loader instance the first time it's
-    // used.
-    const loader = extensionHandler.getLoader();
-    if (!loader) {
-      throw new Error(`Failed to get loader for extension "${options.extension}"`);
-    }
-
+    const loader = getMimeTypeLoader(this, options.mimeType);
     return loader.loadTextureFromBuffer(this[CLIENT], buffer, options);
   }
 

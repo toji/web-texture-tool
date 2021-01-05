@@ -581,16 +581,24 @@ export class WebGPURenderer {
     // Draw each tile.
     passEncoder.setBindGroup(1, this.frameUniformBindGroup);
 
-    passEncoder.setPipeline(this.tile2DRenderer.pipeline);
+    let bindPipeline = true;
     for (let tile of tiles) {
       if (tile.texture && tile.type == '2d') {
+        if (bindPipeline) {
+          passEncoder.setPipeline(this.tile2DRenderer.pipeline);
+          bindPipeline = false;
+        }
         this.tile2DRenderer.draw(passEncoder, tile);
       }
     }
 
-    passEncoder.setPipeline(this.tileCubeRenderer.pipeline);
+    bindPipeline = true;
     for (let tile of tiles) {
       if (tile.texture && tile.type == 'cube') {
+        if (bindPipeline) {
+          passEncoder.setPipeline(this.tileCubeRenderer.pipeline);
+          bindPipeline = false;
+        }
         this.tileCubeRenderer.draw(passEncoder, tile);
       }
     }
