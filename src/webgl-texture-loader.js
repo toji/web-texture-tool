@@ -1,18 +1,3 @@
-// Copyright 2020 Brandon Jones
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
-// Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-// WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 /**
  * Supports loading textures for both WebGL and WebGL 2.0
  *
@@ -20,7 +5,8 @@
  * @module WebGLTextureLoader
  */
 
-import {TextureLoaderBase, WebTextureFormat, WebTextureResult} from './texture-loader-base.js';
+import {TextureLoaderBase, WebTextureResult} from './texture-loader-base.js';
+import {WebTextureFormat} from './texture-format.js';
 
 // For access to WebGL enums without a context.
 const GL = WebGLRenderingContext;
@@ -68,6 +54,21 @@ function webTextureTypeToGLTarget(type) {
     case '2d':
     default:
       return GL.TEXTURE_2D;
+  }
+}
+
+/**
+ * Variant of TextureLoaderBase which produces WebGL textures.
+ */
+export class WebGLTextureLoader extends TextureLoaderBase {
+  /**
+   * Creates a WebGLTextureLoader instance.
+   *
+   * @param {(module:External.WebGLRenderingContext|module:External.WebGL2RenderingContext)} gl - WebGL context to use.
+   * @param {object} toolOptions - Options to initialize this WebTextureTool instance with.
+   */
+  constructor(gl, toolOptions) {
+    super(new WebGLTextureClient(gl), toolOptions);
   }
 }
 
@@ -157,7 +158,7 @@ class WebGLTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps are desired.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
+  fromImageBitmap(imageBitmap, format, generateMipmaps) {
     const gl = this.gl;
     if (!gl) {
       throw new Error('Cannot create new textures after object has been destroyed.');
@@ -200,7 +201,7 @@ class WebGLTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps are desired.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  textureFromImageElement(image, format, generateMipmaps) {
+  fromImageElement(image, format, generateMipmaps) {
     // The methods called to createa a texture from an image element are exactly the same as the imageBitmap path.
     return this.textureFromImageBitmap(image, format, generateMipmaps);
   }
@@ -214,7 +215,7 @@ class WebGLTextureClient {
    * and the texture format is renderable.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  textureFromTextureData(textureData, generateMipmaps) {
+  fromTextureData(textureData, generateMipmaps) {
     const gl = this.gl;
     if (!gl) {
       throw new Error('Cannot create new textures after object has been destroyed.');
@@ -316,20 +317,5 @@ class WebGLTextureClient {
    */
   destroy() {
     this.gl = null;
-  }
-}
-
-/**
- * Variant of TextureLoaderBase which produces WebGL textures.
- */
-export class WebGLTextureLoader extends TextureLoaderBase {
-  /**
-   * Creates a WebGLTextureLoader instance.
-   *
-   * @param {(module:External.WebGLRenderingContext|module:External.WebGL2RenderingContext)} gl - WebGL context to use.
-   * @param {object} toolOptions - Options to initialize this WebTextureTool instance with.
-   */
-  constructor(gl, toolOptions) {
-    super(new WebGLTextureClient(gl), toolOptions);
   }
 }

@@ -1,18 +1,3 @@
-// Copyright 2020 Brandon Jones
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
-// Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-// WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 import {WebGLTextureLoader} from '../src/webgl-texture-loader.js';
 import {mat4} from './gl-matrix/src/gl-matrix.js';
 
@@ -286,7 +271,7 @@ export class WebGLRenderer {
     this.tile2DRenderer = new Tile2DRenderer(gl, this.vaoExt);
     this.tileCubeRenderer = new TileCubeRenderer(gl, this.vaoExt);
 
-    this.checkerboard = await this.loader.loadTextureFromUrl('textures/checkerboard.png');
+    this.checkerboard = await this.loader.fromUrl('textures/checkerboard.png');
   }
 
   onCanvasResize(width, height) {
@@ -298,7 +283,7 @@ export class WebGLRenderer {
   }
 
   loadTextureFromUrl(tile, url) {
-    return this.loader.loadTextureFromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
+    return this.loader.fromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
       const gl = this.gl;
 
       const target = WebTextureTypeToGLTarget(result.type);
@@ -312,7 +297,7 @@ export class WebGLRenderer {
     }).catch((err) => {
       console.warn('Texture failed to load from URL: ', err);
       // If an error occurs plug in a solid color texture to fill it's place.
-      const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
+      const result = this.textureTool.fromColor(0.75, 0.0, 0.0);
 
       tile.texture = result.texture;
       tile.type = result.type;
@@ -321,7 +306,7 @@ export class WebGLRenderer {
   }
 
   loadTextureFromFile(tile, file) {
-    return this.loader.loadTextureFromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
+    return this.loader.fromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
       const gl = this.gl;
 
       const target = WebTextureTypeToGLTarget(result.type);
@@ -335,7 +320,7 @@ export class WebGLRenderer {
     }).catch((err) => {
       console.warn('Texture failed to load from file: ', err);
       // If an error occurs plug in a solid color texture to fill it's place.
-      const result = this.loader.createTextureFromColor(0.75, 0.0, 0.0);
+      const result = this.loader.fromColor(0.75, 0.0, 0.0);
 
       tile.texture = result.texture;
       tile.type = result.type;

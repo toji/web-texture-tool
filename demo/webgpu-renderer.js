@@ -1,23 +1,8 @@
-// Copyright 2020 Brandon Jones
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
-// Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-// WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 import {WebGPUTextureLoader} from '../src/webgpu-texture-loader.js';
 import {mat4} from './gl-matrix/src/gl-matrix.js';
 
 const SAMPLE_COUNT = 4;
-const DEPTH_FORMAT = "depth24plus";
+const DEPTH_FORMAT = 'depth24plus';
 
 const identity = mat4.create();
 const cubeSpin = mat4.create();
@@ -453,7 +438,7 @@ export class WebGPURenderer {
       sampleCount: SAMPLE_COUNT,
     });
 
-    const checkerboard = await this.loader.loadTextureFromUrl('textures/checkerboard.png');
+    const checkerboard = await this.loader.fromUrl('textures/checkerboard.png');
 
     this.backgroundBindGroup = this.device.createBindGroup({
       layout: this.backgroundPipeline.getBindGroupLayout(0),
@@ -535,25 +520,25 @@ export class WebGPURenderer {
   }
 
   loadTextureFromUrl(tile, url) {
-    return this.loader.loadTextureFromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
+    return this.loader.fromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
       return this.updateTileWithResult(tile, result);
     }).catch((err) => {
       console.warn('Texture failed to load from URL: ', err);
 
       // If an error occurs plug in a solid color texture to fill it's place.
-      const result = this.loader.createTextureFromColor(0.75, 0.0, 0.0);
+      const result = this.loader.fromColor(0.75, 0.0, 0.0);
       return this.updateTileWithResult(tile, result);
     });
   }
 
   loadTextureFromFile(tile, file) {
-    return this.loader.loadTextureFromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
+    return this.loader.fromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
       return this.updateTileWithResult(tile, result);
     }).catch((err) => {
       console.warn('Texture failed to load from File: ', err);
 
       // If an error occurs plug in a solid color texture to fill it's place.
-      const result = this.loader.createTextureFromColor(0.75, 0.0, 0.0);
+      const result = this.loader.fromColor(0.75, 0.0, 0.0);
       return this.updateTileWithResult(tile, result);
     });
   }

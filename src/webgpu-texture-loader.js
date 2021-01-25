@@ -1,18 +1,3 @@
-// Copyright 2020 Brandon Jones
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
-// Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-// WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 /**
  * Supports loading textures for WebGPU, as well as providing common utilities that are not part of the core WebGPU API
  * such as mipmap generation.
@@ -21,7 +6,8 @@
  * @module WebGPUTextureLoader
  */
 
-import {TextureLoaderBase, WebTextureFormat, WebTextureResult} from './texture-loader-base.js';
+import {TextureLoaderBase, WebTextureResult} from './texture-loader-base.js';
+import {WebTextureFormat} from './texture-format.js';
 import {WebGPUMipmapGenerator} from './webgpu-mipmap-generator.js';
 
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
@@ -50,6 +36,21 @@ const EXTENSION_FORMATS = {
  */
 function calculateMipLevels(width, height) {
   return Math.floor(Math.log2(Math.max(width, height))) + 1;
+}
+
+/**
+ * Variant of TextureLoaderBase which produces WebGPU textures.
+ */
+export class WebGPUTextureLoader extends TextureLoaderBase {
+  /**
+   * Creates a WebTextureTool instance which produces WebGPU textures.
+   *
+   * @param {module:External.GPUDevice} device - WebGPU device to create textures with.
+   * @param {object} toolOptions - Options to initialize this WebTextureTool instance with.
+   */
+  constructor(device, toolOptions) {
+    super(new WebGPUTextureClient(device), toolOptions);
+  }
 }
 
 /**
@@ -115,7 +116,7 @@ class WebGPUTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps are desired.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  async textureFromImageBitmap(imageBitmap, format, generateMipmaps) {
+  async fromImageBitmap(imageBitmap, format, generateMipmaps) {
     if (!this.device) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
@@ -156,7 +157,7 @@ class WebGPUTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps are desired.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  async textureFromImageElement(image, format, generateMipmaps) {
+  async fromImageElement(image, format, generateMipmaps) {
     if (!this.device) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
@@ -176,7 +177,7 @@ class WebGPUTextureClient {
    * and the texture format is renderable.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  textureFromTextureData(textureData, generateMipmaps) {
+  fromTextureData(textureData, generateMipmaps) {
     if (!this.device) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
@@ -254,20 +255,5 @@ class WebGPUTextureClient {
    */
   destroy() {
     this.device = null;
-  }
-}
-
-/**
- * Variant of TextureLoaderBase which produces WebGPU textures.
- */
-export class WebGPUTextureLoader extends TextureLoaderBase {
-  /**
-   * Creates a WebTextureTool instance which produces WebGPU textures.
-   *
-   * @param {module:External.GPUDevice} device - WebGPU device to create textures with.
-   * @param {object} toolOptions - Options to initialize this WebTextureTool instance with.
-   */
-  constructor(device, toolOptions) {
-    super(new WebGPUTextureClient(device), toolOptions);
   }
 }
