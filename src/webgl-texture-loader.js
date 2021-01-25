@@ -17,10 +17,10 @@
  * Supports loading textures for both WebGL and WebGL 2.0
  *
  * @file WebGL client for the Web Texture Tool
- * @module WebGLTextureTool
+ * @module WebGLTextureLoader
  */
 
-import {WebTextureFormat, WebTextureTool, WebTextureResult} from './web-texture-tool-base.js';
+import {TextureLoaderBase, WebTextureFormat, WebTextureResult} from './texture-loader-base.js';
 
 // For access to WebGL enums without a context.
 const GL = WebGLRenderingContext;
@@ -72,7 +72,7 @@ function webTextureTypeToGLTarget(type) {
 }
 
 /**
- * Variant of WebTextureClient that uses WebGL.
+ * Variant of TextureLoaderBase that uses WebGL.
  */
 class WebGLTextureClient {
   /**
@@ -320,11 +320,11 @@ class WebGLTextureClient {
 }
 
 /**
- * Variant of WebTextureTool which produces WebGL textures.
+ * Variant of TextureLoaderBase which produces WebGL textures.
  */
-export class WebGLTextureTool extends WebTextureTool {
+export class WebGLTextureLoader extends TextureLoaderBase {
   /**
-   * Creates a WebTextureTool instance which produces WebGL textures.
+   * Creates a WebGLTextureLoader instance.
    *
    * @param {(module:External.WebGLRenderingContext|module:External.WebGL2RenderingContext)} gl - WebGL context to use.
    * @param {object} toolOptions - Options to initialize this WebTextureTool instance with.

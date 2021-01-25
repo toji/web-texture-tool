@@ -20,7 +20,7 @@
  * streaming in new assets.
  *
  * @file Library for loading various image sources as textures for WebGL or WebGPU
- * @module WebTextureTool
+ * @module TextureLoaderBase
  */
 
 import {ImageLoader} from './image-loader.js';
@@ -290,10 +290,10 @@ function getMimeTypeLoader(wtt, mimeType) {
 }
 
 /**
- * Base texture tool class.
- * Must not be used directly, create an instance of WebGLTextureTool or WebGPUTextureTool instead.
+ * Base texture loader class.
+ * Must not be used directly, create an instance of WebGLTextureLoader or WebGPUTextureLoader instead.
  */
-export class WebTextureTool {
+export class TextureLoaderBase {
   /**
    * WebTextureTool constructor. Must not be called by applications directly.
    * Create an instance of WebGLTextureTool or WebGPUTextureTool as needed instead.

@@ -13,7 +13,7 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import {WebGLTextureTool} from '../src/webgl-texture-tool.js';
+import {WebGLTextureLoader} from '../src/webgl-texture-loader.js';
 import {mat4} from './gl-matrix/src/gl-matrix.js';
 
 import * as Util from './gl-utils.js';
@@ -273,7 +273,7 @@ export class WebGLRenderer {
       this.vaoExt = gl.getExtension('OES_vertex_array_object');
     }
 
-    this.textureTool = new WebGLTextureTool(gl);
+    this.loader = new WebGLTextureLoader(gl);
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.enable(gl.CULL_FACE);
@@ -286,7 +286,7 @@ export class WebGLRenderer {
     this.tile2DRenderer = new Tile2DRenderer(gl, this.vaoExt);
     this.tileCubeRenderer = new TileCubeRenderer(gl, this.vaoExt);
 
-    this.checkerboard = await this.textureTool.loadTextureFromUrl('textures/checkerboard.png');
+    this.checkerboard = await this.loader.loadTextureFromUrl('textures/checkerboard.png');
   }
 
   onCanvasResize(width, height) {
@@ -298,7 +298,7 @@ export class WebGLRenderer {
   }
 
   loadTextureFromUrl(tile, url) {
-    return this.textureTool.loadTextureFromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
+    return this.loader.loadTextureFromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
       const gl = this.gl;
 
       const target = WebTextureTypeToGLTarget(result.type);
@@ -321,7 +321,7 @@ export class WebGLRenderer {
   }
 
   loadTextureFromFile(tile, file) {
-    return this.textureTool.loadTextureFromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
+    return this.loader.loadTextureFromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
       const gl = this.gl;
 
       const target = WebTextureTypeToGLTarget(result.type);
@@ -335,7 +335,7 @@ export class WebGLRenderer {
     }).catch((err) => {
       console.warn('Texture failed to load from file: ', err);
       // If an error occurs plug in a solid color texture to fill it's place.
-      const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
+      const result = this.loader.createTextureFromColor(0.75, 0.0, 0.0);
 
       tile.texture = result.texture;
       tile.type = result.type;
@@ -403,8 +403,8 @@ export class WebGLRenderer {
   }
 
   destroy() {
-    if (this.textureTool) {
-      this.textureTool.destroy();
+    if (this.loader) {
+      this.loader.destroy();
     }
   }
 }

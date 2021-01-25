@@ -13,7 +13,7 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import {WebGPUTextureTool} from '../src/webgpu-texture-tool.js';
+import {WebGPUTextureLoader} from '../src/webgpu-texture-loader.js';
 import {mat4} from './gl-matrix/src/gl-matrix.js';
 
 const SAMPLE_COUNT = 4;
@@ -345,7 +345,7 @@ export class WebGPURenderer {
     if (!this.device.extensions) {
       this.device.extensions = extensions;
     }
-    this.textureTool = new WebGPUTextureTool(this.device);
+    this.loader = new WebGPUTextureLoader(this.device);
 
     // Swap chain setup
     this.swapChainFormat = this.context.getSwapChainPreferredFormat(this.adapter);
@@ -381,21 +381,21 @@ export class WebGPURenderer {
     this.bindGroupLayouts = {
       tile2D: this.device.createBindGroupLayout({
         entries: [
-          { binding: 0, visibility: GPUShaderStage.VERTEX, type: 'uniform-buffer' },
-          { binding: 1, visibility: GPUShaderStage.FRAGMENT, type: 'sampler' },
-          { binding: 2, visibility: GPUShaderStage.FRAGMENT, type: 'sampled-texture' },
+          { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {} },
+          { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+          { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: {} },
         ]
       }),
       tileCube: this.device.createBindGroupLayout({
         entries: [
-          { binding: 0, visibility: GPUShaderStage.VERTEX, type: 'uniform-buffer' },
-          { binding: 1, visibility: GPUShaderStage.FRAGMENT, type: 'sampler' },
-          { binding: 2, visibility: GPUShaderStage.FRAGMENT, type: 'sampled-texture', viewDimension: 'cube' },
+          { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {} },
+          { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+          { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: { viewDimension: 'cube' } },
         ]
       }),
       frameUniforms :this.device.createBindGroupLayout({
         entries: [
-          { binding: 0, visibility: GPUShaderStage.VERTEX, type: 'uniform-buffer' }
+          { binding: 0, visibility: GPUShaderStage.VERTEX,buffer: {} }
         ]
       })
     };
@@ -453,7 +453,7 @@ export class WebGPURenderer {
       sampleCount: SAMPLE_COUNT,
     });
 
-    const checkerboard = await this.textureTool.loadTextureFromUrl('textures/checkerboard.png');
+    const checkerboard = await this.loader.loadTextureFromUrl('textures/checkerboard.png');
 
     this.backgroundBindGroup = this.device.createBindGroup({
       layout: this.backgroundPipeline.getBindGroupLayout(0),
@@ -535,25 +535,25 @@ export class WebGPURenderer {
   }
 
   loadTextureFromUrl(tile, url) {
-    return this.textureTool.loadTextureFromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
+    return this.loader.loadTextureFromUrl(url, {mipmaps: this.mipmaps}).then((result) => {
       return this.updateTileWithResult(tile, result);
     }).catch((err) => {
       console.warn('Texture failed to load from URL: ', err);
 
       // If an error occurs plug in a solid color texture to fill it's place.
-      const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
+      const result = this.loader.createTextureFromColor(0.75, 0.0, 0.0);
       return this.updateTileWithResult(tile, result);
     });
   }
 
   loadTextureFromFile(tile, file) {
-    return this.textureTool.loadTextureFromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
+    return this.loader.loadTextureFromBlob(file, {filename: file.name, mipmaps: this.mipmaps}).then((result) => {
       return this.updateTileWithResult(tile, result);
     }).catch((err) => {
       console.warn('Texture failed to load from File: ', err);
 
       // If an error occurs plug in a solid color texture to fill it's place.
-      const result = this.textureTool.createTextureFromColor(0.75, 0.0, 0.0);
+      const result = this.loader.createTextureFromColor(0.75, 0.0, 0.0);
       return this.updateTileWithResult(tile, result);
     });
   }
@@ -608,8 +608,8 @@ export class WebGPURenderer {
   }
 
   destroy() {
-    if (this.textureTool) {
-      this.textureTool.destroy();
+    if (this.loader) {
+      this.loader.destroy();
     }
   }
 }

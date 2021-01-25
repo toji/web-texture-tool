@@ -17,11 +17,11 @@
  * Supports loading textures for WebGPU, as well as providing common utilities that are not part of the core WebGPU API
  * such as mipmap generation.
  *
- * @file WebGPU client for the Web Texture Tool
- * @module WebGPUTextureTool
+ * @file WebGPU client for the Web Texture Loader
+ * @module WebGPUTextureLoader
  */
 
-import {WebTextureFormat, WebTextureTool, WebTextureResult} from './web-texture-tool-base.js';
+import {TextureLoaderBase, WebTextureFormat, WebTextureResult} from './texture-loader-base.js';
 import {WebGPUMipmapGenerator} from './webgpu-mipmap-generator.js';
 
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
@@ -258,9 +258,9 @@ class WebGPUTextureClient {
 }
 
 /**
- * Variant of WebTextureTool which produces WebGPU textures.
+ * Variant of TextureLoaderBase which produces WebGPU textures.
  */
-export class WebGPUTextureTool extends WebTextureTool {
+export class WebGPUTextureLoader extends TextureLoaderBase {
   /**
    * Creates a WebTextureTool instance which produces WebGPU textures.
    *

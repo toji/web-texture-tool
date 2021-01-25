@@ -88,7 +88,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
       });
       gui.add(settings, "compressedFormats").onChange(() => {
         if (renderer) {
-          renderer.textureTool.allowCompressedFormats = settings.compressedFormats;
+          renderer.loader.allowCompressedFormats = settings.compressedFormats;
         }
       });
       gui.add(settings, "pause");
@@ -312,7 +312,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
           renderer = newRenderer;
           renderer.mipmaps = settings.mipmaps;
-          renderer.textureTool.allowCompressedFormats = settings.compressedFormats;
+          renderer.loader.allowCompressedFormats = settings.compressedFormats;
 
           const canvas = newRenderer.canvas;
           document.body.appendChild(canvas);
