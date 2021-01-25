@@ -36,7 +36,7 @@ function calculateMipLevels(width, height) {
  * Returns the associated WebGL values for the given mapping, if they exist.
  *
  * @param {module:WebTextureTool.WebTextureFormat} format - Texture format string.
- * @returns {WebGLMappedFormat} - WebGL values that correspond with the given format.
+ * @returns {object} - WebGL values that correspond with the given format.
  */
 function resolveFormat(format) {
   const wtFormat = WebTextureFormat[format];
@@ -47,6 +47,12 @@ function resolveFormat(format) {
   return wtFormat;
 }
 
+/**
+ * Gets the WebGL texture target required for a given texture type.
+ * 
+ * @param {GPUTextureViewDimension} type - Texture type.
+ * @returns {GLenum} - WebGL texture target.
+ */
 function webTextureTypeToGLTarget(type) {
   switch (type) {
     case 'cube':
