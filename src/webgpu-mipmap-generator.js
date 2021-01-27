@@ -21,7 +21,7 @@ export class WebGPUMipmapGenerator {
               vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0));
 
             [[builtin(position)]] var<out> outPosition : vec4<f32>;
-            [[builtin(vertex_idx)]] var<in> vertexIndex : i32;
+            [[builtin(vertex_index)]] var<in> vertexIndex : i32;
 
             [[location(0)]] var<out> vTex : vec2<f32>;
 
@@ -36,8 +36,8 @@ export class WebGPUMipmapGenerator {
 
         this.mipmapFragmentShaderModule = this.device.createShaderModule({
           code: `
-            [[binding(0), set(0)]] var<uniform_constant> imgSampler : sampler;
-            [[binding(1), set(0)]] var<uniform_constant> img : texture_sampled_2d<f32>;
+            [[binding(0), group(0)]] var<uniform_constant> imgSampler : sampler;
+            [[binding(1), group(0)]] var<uniform_constant> img : texture_sampled_2d<f32>;
 
             [[location(0)]] var<in> vTex : vec2<f32>;
             [[location(0)]] var<out> outColor : vec4<f32>;

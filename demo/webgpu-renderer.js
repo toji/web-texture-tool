@@ -18,7 +18,7 @@ const wgslSrc = {
       vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0)
     );
     [[builtin(position)]] var<out> Position : vec4<f32>;
-    [[builtin(vertex_idx)]] var<in> VertexIndex : i32;
+    [[builtin(vertex_index)]] var<in> VertexIndex : i32;
 
     [[location(0)]] var<out> vTex : vec2<f32>;
 
@@ -33,8 +33,8 @@ const wgslSrc = {
     [[location(0)]] var<out> outColor : vec4<f32>;
     [[location(0)]] var<in> vTex : vec2<f32>;
 
-    [[binding(1), set(0)]] var<uniform_constant> imgSampler : sampler;
-    [[binding(2), set(0)]] var<uniform_constant> img : texture_sampled_2d<f32>;
+    [[binding(1), group(0)]] var<uniform_constant> imgSampler : sampler;
+    [[binding(2), group(0)]] var<uniform_constant> img : texture_sampled_2d<f32>;
 
     [[stage(fragment)]]
     fn main() -> void {
@@ -57,19 +57,19 @@ class Tile2DRenderer {
       );
 
       [[builtin(position)]] var<out> Position : vec4<f32>;
-      [[builtin(vertex_idx)]] var<in> VertexIndex : i32;
+      [[builtin(vertex_index)]] var<in> VertexIndex : i32;
 
       [[location(0)]] var<out> vTex : vec2<f32>;
 
       [[block]] struct TileUniforms {
         [[offset(0)]] modelViewMatrix : mat4x4<f32>;
       };
-      [[set(0), binding(0)]] var<uniform> tileUniforms : TileUniforms;
+      [[group(0), binding(0)]] var<uniform> tileUniforms : TileUniforms;
 
       [[block]] struct FrameUniforms {
         [[offset(0)]] projectionMatrix : mat4x4<f32>;
       };
-      [[set(1), binding(0)]] var<uniform> frameUniforms : FrameUniforms;
+      [[group(1), binding(0)]] var<uniform> frameUniforms : FrameUniforms;
 
       [[stage(vertex)]]
       fn main() -> void {
@@ -83,8 +83,8 @@ class Tile2DRenderer {
       [[location(0)]] var<out> outColor : vec4<f32>;
       [[location(0)]] var<in> vTex : vec2<f32>;
 
-      [[set(0), binding(1)]] var<uniform_constant> imgSampler : sampler;
-      [[set(0), binding(2)]] var<uniform_constant> img : texture_sampled_2d<f32>;
+      [[group(0), binding(1)]] var<uniform_constant> imgSampler : sampler;
+      [[group(0), binding(2)]] var<uniform_constant> img : texture_sampled_2d<f32>;
 
       [[stage(fragment)]]
       fn main() -> void {
