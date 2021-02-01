@@ -182,7 +182,7 @@ export class WebGPUMipmapGenerator {
       }
     }
 
-    this.device.defaultQueue.submit([commandEncoder.finish()]);
+    this.device.queue.submit([commandEncoder.finish()]);
 
     if (!renderToSource) {
       mipTexture.destroy();

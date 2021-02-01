@@ -139,7 +139,7 @@ class Tile2DRenderer {
 
   draw(passEncoder, tile) {
     if (tile.texture) {
-      this.device.defaultQueue.writeBuffer(tile.uniformBuffer, 0, tile.modelView);
+      this.device.queue.writeBuffer(tile.uniformBuffer, 0, tile.modelView);
       passEncoder.setBindGroup(0, tile.bindGroup);
       passEncoder.draw(4);
     }
@@ -258,7 +258,7 @@ class TileCubeRenderer {
       size: vertexArray.byteLength,
       usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
     });
-    this.device.defaultQueue.writeBuffer(this.vertexBuffer, 0, vertexArray);
+    this.device.queue.writeBuffer(this.vertexBuffer, 0, vertexArray);
 
     const indexArray = new Uint16Array([
       // PosX (Right)
@@ -290,12 +290,12 @@ class TileCubeRenderer {
       size: indexArray.byteLength,
       usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
     });
-    this.device.defaultQueue.writeBuffer(this.indexBuffer, 0, indexArray);
+    this.device.queue.writeBuffer(this.indexBuffer, 0, indexArray);
   }
 
   draw(passEncoder, tile) {
     if (tile.texture) {
-      this.device.defaultQueue.writeBuffer(tile.uniformBuffer, 0, tile.modelView);
+      this.device.queue.writeBuffer(tile.uniformBuffer, 0, tile.modelView);
       passEncoder.setBindGroup(0, tile.bindGroup);
       passEncoder.setVertexBuffer(0, this.vertexBuffer);
       passEncoder.setIndexBuffer(this.indexBuffer, 'uint16');
@@ -459,7 +459,7 @@ export class WebGPURenderer {
       size: { width, height, depth: 1 },
       sampleCount: SAMPLE_COUNT,
       format: this.swapChainFormat,
-      usage: GPUTextureUsage.OUTPUT_ATTACHMENT,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
     });
     this.colorAttachment.attachment = msaaColorTexture.createView();
 
@@ -467,7 +467,7 @@ export class WebGPURenderer {
       size: { width, height, depth: 1 },
       sampleCount: SAMPLE_COUNT,
       format: DEPTH_FORMAT,
-      usage: GPUTextureUsage.OUTPUT_ATTACHMENT
+      usage: GPUTextureUsage.RENDER_ATTACHMENT
     });
     this.depthAttachment.attachment = depthTexture.createView();
   }
@@ -549,8 +549,8 @@ export class WebGPURenderer {
 
     // Update the FrameUniforms buffer with the values that are used by every
     // program and don't change for the duration of the frame.
-    this.device.defaultQueue.writeBuffer(this.frameUniformsBuffer, 0, projectionMat);
-    this.device.defaultQueue.writeBuffer(this.frameUniformsBuffer, 64, cubeSpin);
+    this.device.queue.writeBuffer(this.frameUniformsBuffer, 0, projectionMat);
+    this.device.queue.writeBuffer(this.frameUniformsBuffer, 64, cubeSpin);
 
     this.colorAttachment.resolveTarget = this.swapChain.getCurrentTexture().createView();
 
@@ -589,7 +589,7 @@ export class WebGPURenderer {
     }
 
     passEncoder.endPass();
-    this.device.defaultQueue.submit([commandEncoder.finish()]);
+    this.device.queue.submit([commandEncoder.finish()]);
   }
 
   destroy() {
