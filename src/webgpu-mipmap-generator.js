@@ -89,8 +89,8 @@ export class WebGPUMipmapGenerator {
     let mipTexture = texture;
     const arrayLayerCount = textureDescriptor.size.depth || 1; // Only valid for 2D textures.
 
-    // If the texture was created with OUTPUT_ATTACHMENT usage we can render directly between mip levels.
-    const renderToSource = textureDescriptor.usage & GPUTextureUsage.OUTPUT_ATTACHMENT;
+    // If the texture was created with RENDER_ATTACHMENT usage we can render directly between mip levels.
+    const renderToSource = textureDescriptor.usage & GPUTextureUsage.RENDER_ATTACHMENT;
     if (!renderToSource) {
       // Otherwise we have to use a separate texture to render into. It can be one mip level smaller than the source
       // texture, since we already have the top level.
@@ -101,7 +101,7 @@ export class WebGPUMipmapGenerator {
           depth: arrayLayerCount,
         },
         format: textureDescriptor.format,
-        usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.SAMPLED | GPUTextureUsage.OUTPUT_ATTACHMENT,
+        usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.SAMPLED | GPUTextureUsage.RENDER_ATTACHMENT,
         mipLevelCount: textureDescriptor.mipLevelCount - 1,
       };
       mipTexture = this.device.createTexture(mipTextureDescriptor);
