@@ -34,7 +34,7 @@ const wgslSrc = {
     [[location(0)]] var<in> vTex : vec2<f32>;
 
     [[binding(1), group(0)]] var<uniform_constant> imgSampler : sampler;
-    [[binding(2), group(0)]] var<uniform_constant> img : texture_sampled_2d<f32>;
+    [[binding(2), group(0)]] var<uniform_constant> img : texture_2d<f32>;
 
     [[stage(fragment)]]
     fn main() -> void {
@@ -84,7 +84,7 @@ class Tile2DRenderer {
       [[location(0)]] var<in> vTex : vec2<f32>;
 
       [[group(0), binding(1)]] var<uniform_constant> imgSampler : sampler;
-      [[group(0), binding(2)]] var<uniform_constant> img : texture_sampled_2d<f32>;
+      [[group(0), binding(2)]] var<uniform_constant> img : texture_2d<f32>;
 
       [[stage(fragment)]]
       fn main() -> void {
@@ -180,7 +180,7 @@ class TileCubeRenderer {
       [[location(0)]] var<in> vTex : vec3<f32>;
 
       [[binding(1), set(0)]] var<uniform_constant> imgSampler : sampler;
-      [[binding(2), set(0)]] var<uniform_constant> img : texture_sampled_cube<f32>;
+      [[binding(2), set(0)]] var<uniform_constant> img : texture_cube<f32>;
 
       [[stage(fragment)]]
       fn main() -> void {
