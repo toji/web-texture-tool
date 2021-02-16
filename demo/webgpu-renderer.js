@@ -456,7 +456,7 @@ export class WebGPURenderer {
     if (!this.device) return;
 
     const msaaColorTexture = this.device.createTexture({
-      size: { width, height, depth: 1 },
+      size: { width, height },
       sampleCount: SAMPLE_COUNT,
       format: this.swapChainFormat,
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
@@ -464,7 +464,7 @@ export class WebGPURenderer {
     this.colorAttachment.attachment = msaaColorTexture.createView();
 
     const depthTexture = this.device.createTexture({
-      size: { width, height, depth: 1 },
+      size: { width, height },
       sampleCount: SAMPLE_COUNT,
       format: DEPTH_FORMAT,
       usage: GPUTextureUsage.RENDER_ATTACHMENT
