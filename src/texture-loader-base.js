@@ -9,7 +9,7 @@
  */
 
 import {ImageLoader} from './image-loader.js';
-import {WorkerLoader} from './workers/worker-loader.js';
+import {WorkerLoader} from './worker-loader.js';
 import {WebTextureFormat} from './texture-format.js';
 
 /**
@@ -155,9 +155,9 @@ const EXTENSION_MIME_TYPES = {
 
 const EXTENSION_HANDLERS = [
   new ExtensionHandler(ImageLoader.supportedMIMETypes(), () => new ImageLoader()),
-  new ExtensionHandler(['image/basis'], () => new WorkerLoader('basis/basis-worker.js')),
-  new ExtensionHandler(['image/ktx', 'image/ktx2'], () => new WorkerLoader('ktx/ktx-worker.js')),
-  new ExtensionHandler(['image/vnd.ms-dds'], () => new WorkerLoader('dds-worker.js')),
+  new ExtensionHandler(['image/basis'], () => new WorkerLoader('workers/basis/basis-worker.js')),
+  new ExtensionHandler(['image/ktx', 'image/ktx2'], () => new WorkerLoader('workers/ktx/ktx-worker.js')),
+  new ExtensionHandler(['image/vnd.ms-dds'], () => new WorkerLoader('workers/dds-worker.js')),
 ];
 
 const CLIENT = Symbol('wtt/WebTextureClient');

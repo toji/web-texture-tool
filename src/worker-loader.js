@@ -5,6 +5,8 @@
  * @module WorkerLoader
  */
 
+const WORKER_DIR = import.meta.url.replace(/[^\/]*$/, '');
+
 /**
  * Tracks required data for fulfilling a texture request once it has been transcoded.
  */
@@ -72,7 +74,7 @@ export class WorkerLoader {
    */
   constructor(relativeWorkerPath) {
     // Load the worker script.
-    const workerPath = import.meta.url.replace('worker-loader.js', relativeWorkerPath);
+    const workerPath = `${WORKER_DIR}${relativeWorkerPath}`;
     this.worker = new Worker(workerPath);
     this.worker.onmessage = onWorkerMessage;
   }

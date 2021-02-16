@@ -125,7 +125,7 @@ class WebGPUTextureClient {
     const usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
 
     const textureDescriptor = {
-      size: {width: imageBitmap.width, height: imageBitmap.height, depth: 1},
+      size: {width: imageBitmap.width, height: imageBitmap.height},
       format,
       usage,
       mipLevelCount,
@@ -199,7 +199,7 @@ class WebGPUTextureClient {
       size: {
         width: Math.ceil(textureData.width / blockInfo.blockWidth) * blockInfo.blockWidth,
         height: Math.ceil(textureData.height / blockInfo.blockHeight) * blockInfo.blockHeight,
-        depth: textureData.depth,
+        depthOrArrayLayers: textureData.depth,
       },
       format: textureData.format,
       usage,
@@ -228,7 +228,6 @@ class WebGPUTextureClient {
             { // Copy width and height must be a multiple of the format block size;
               width: Math.ceil(mipLevel.width / blockInfo.blockWidth) * blockInfo.blockWidth,
               height: Math.ceil(mipLevel.height / blockInfo.blockHeight) * blockInfo.blockHeight,
-              depth: 1,
             });
       }
     }

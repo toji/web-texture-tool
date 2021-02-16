@@ -98,7 +98,7 @@ export class WebGPUMipmapGenerator {
         size: {
           width: Math.ceil(textureDescriptor.size.width / 2),
           height: Math.ceil(textureDescriptor.size.height / 2),
-          depth: arrayLayerCount,
+          depthOrArrayLayers: arrayLayerCount,
         },
         format: textureDescriptor.format,
         usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.SAMPLED | GPUTextureUsage.RENDER_ATTACHMENT,
@@ -163,7 +163,7 @@ export class WebGPUMipmapGenerator {
       const mipLevelSize = {
         width: Math.ceil(textureDescriptor.size.width / 2),
         height: Math.ceil(textureDescriptor.size.height / 2),
-        depth: arrayLayerCount,
+        depthOrArrayLayers: arrayLayerCount,
       };
 
       // TODO: This should use textureDescriptor.mipLevelCount isntead of textureDescriptor.mipLevelCount-1, but for

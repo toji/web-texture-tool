@@ -18,13 +18,10 @@
   "scripts": {
     "lint": "npx eslint src",
     "build": "npm run lint && npm run build-all",
-    "build-all": "npm run clean && npm run build-webgl && npm run build-webgpu && npm run build-worker && npm run build-basis && npm run build-ktx && npm run build-dds",
+    "build-all": "npm run clean && npm run build-webgl && npm run build-webgpu && npm run copy-workers",
     "build-webgl": "npx esbuild --bundle src/webgl-texture-loader.js --outdir=build --minify --sourcemap --format=esm",
     "build-webgpu": "npx esbuild --bundle src/webgpu-texture-loader.js --outdir=build --minify --sourcemap --format=esm",
-    "build-worker": "npx esbuild --bundle src/workers/worker-util.js --outdir=build/workers --minify --sourcemap --format=esm",
-    "build-basis": "copyfiles --flat src/workers/basis/basis_transcoder.* build/workers/basis && npx esbuild --bundle src/workers/basis/basis-worker.js --outdir=build/workers/basis --minify --sourcemap --format=esm",
-    "build-ktx": "copyfiles --flat src/workers/ktx/libktx.* build/workers/ktx && npx esbuild --bundle src/workers/ktx/ktx-worker.js --outdir=build/workers/ktx --minify --sourcemap --format=esm",
-    "build-dds": "npx esbuild --bundle src/workers/dds-worker.js --outdir=build/workers --minify --sourcemap --format=esm",
+    "copy-workers": "copyfiles -u 2 src/workers/* build/workers && copyfiles -u 2 src/workers/**/* build/workers",
     "build-docs": "jsdoc -c jsdoc.config.json",
     "clean": "rm -rf build",
     "old-build-docs": "documentation build src/** -f html -o docs"
