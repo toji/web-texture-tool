@@ -81,13 +81,12 @@ class WebGPUTextureClient {
       'bgra8unorm-srgb',
     ];
 
-    // Add any other formats that are exposed by extensions.
-    if (device.extensions) {
-      for (const extension of device.extensions) {
-        const formats = EXTENSION_FORMATS[extension];
-        if (formats) {
-          this.supportedFormatList.push(...formats);
-        }
+    // Add any other formats that are exposed by WebGPU features.
+    const featureList = device.features || device.extensions; // extensions is deprecated
+    for (const feature of featureList) {
+      const formats = EXTENSION_FORMATS[feature];
+      if (formats) {
+        this.supportedFormatList.push(...formats);
       }
     }
 

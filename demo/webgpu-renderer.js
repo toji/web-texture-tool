@@ -217,7 +217,7 @@ class TileCubeRenderer {
             attributes: [
               {
                 shaderLocation: 0,
-                format: 'float3',
+                format: 'float32x3',
                 offset: 0,
               }
             ]
@@ -315,21 +315,17 @@ export class WebGPURenderer {
     this.adapter = await navigator.gpu.requestAdapter({
       powerPreference: "high-performance"
     });
-    let extensions = [];
+    let nonGuaranteedFeatures = [];
 
-    if (this.adapter.extensions.indexOf('texture-compression-bc') != -1) {
-      // This is the extension string the spec says SHOULD be used.
-      extensions.push('texture-compression-bc');
-    } else if (this.adapter.extensions.indexOf('textureCompressionBC') != -1) {
-      // TODO: This is the string Chrome is exposing, but it's not the one in the spec.
-      extensions.push('textureCompressionBC');
+    const featureList = this.adapter.features || this.adapter.extensions; // extensions is deprecated
+    if (featureList.indexOf('texture-compression-bc') != -1) {
+      nonGuaranteedFeatures.push('texture-compression-bc');
     }
 
-    this.device = await this.adapter.requestDevice({extensions});
-    // TODO: This shouldn't be necessary long-term.
-    if (!this.device.extensions) {
-      this.device.extensions = extensions;
-    }
+    this.device = await this.adapter.requestDevice({
+      nonGuaranteedFeatures,
+      extensions: nonGuaranteedFeatures // Deprecated
+    });
     this.loader = new WebGPUTextureLoader(this.device);
 
     // Swap chain setup
