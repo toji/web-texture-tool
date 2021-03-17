@@ -5,7 +5,7 @@ possible.
 
 # WARNING
 
-**This repo is still a work in progress! It's not recommended for use by others at this point.**
+**This repo is still a work in progress!** The interface is subject to change as the scope and functionality of the library evolves.
 
 # Basic Usage
 
