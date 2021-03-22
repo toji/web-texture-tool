@@ -42,6 +42,26 @@ export class WebTextureResult {
     this.format = description.format || 'rgba8unorm';
     this.type = description.type || '2d';
   }
+
+  get glFormat() {
+    const texProperties = WebTextureFormat[this.format];
+    return texProperties.gl.format  || null;
+  }
+
+  get glSizedFormat() {
+    const texProperties = WebTextureFormat[this.format];
+    return texProperties.gl.sizedFormat;
+  }
+
+  get glTarget() {
+    switch (this.type) {
+      case 'cube':
+        return GL.TEXTURE_CUBE_MAP;
+      case '2d':
+      default:
+        return GL.TEXTURE_2D;
+    }
+  }
 }
 
 export class WebTextureData {

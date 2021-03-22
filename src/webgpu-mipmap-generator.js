@@ -36,8 +36,8 @@ export class WebGPUMipmapGenerator {
 
         this.mipmapFragmentShaderModule = this.device.createShaderModule({
           code: `
-            [[binding(0), group(0)]] var<uniform_constant> imgSampler : sampler;
-            [[binding(1), group(0)]] var<uniform_constant> img : texture_2d<f32>;
+            [[binding(0), group(0)]] var imgSampler : sampler;
+            [[binding(1), group(0)]] var img : texture_2d<f32>;
 
             [[location(0)]] var<in> vTex : vec2<f32>;
             [[location(0)]] var<out> outColor : vec4<f32>;
@@ -52,19 +52,19 @@ export class WebGPUMipmapGenerator {
       }
 
       pipeline = this.device.createRenderPipeline({
-        vertexStage: {
+        vertex: {
           module: this.mipmapVertexShaderModule,
           entryPoint: 'main',
         },
-        fragmentStage: {
+        fragment: {
           module: this.mipmapFragmentShaderModule,
           entryPoint: 'main',
+          targets: [{format}],
         },
-        primitiveTopology: 'triangle-strip',
-        vertexState: {
-          indexFormat: 'uint32',
+        primitive: {
+          topology: 'triangle-strip',
+          stripIndexFormat: 'uint32',
         },
-        colorStates: [{format}],
       });
       this.pipelines[format] = pipeline;
     }

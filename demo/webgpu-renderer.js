@@ -33,8 +33,8 @@ const wgslSrc = {
     [[location(0)]] var<out> outColor : vec4<f32>;
     [[location(0)]] var<in> vTex : vec2<f32>;
 
-    [[binding(1), group(0)]] var<uniform_constant> imgSampler : sampler;
-    [[binding(2), group(0)]] var<uniform_constant> img : texture_2d<f32>;
+    [[binding(1), group(0)]] var imgSampler : sampler;
+    [[binding(2), group(0)]] var img : texture_2d<f32>;
 
     [[stage(fragment)]]
     fn main() -> void {
@@ -62,12 +62,12 @@ class Tile2DRenderer {
       [[location(0)]] var<out> vTex : vec2<f32>;
 
       [[block]] struct TileUniforms {
-        [[offset(0)]] modelViewMatrix : mat4x4<f32>;
+        modelViewMatrix : mat4x4<f32>;
       };
       [[group(0), binding(0)]] var<uniform> tileUniforms : TileUniforms;
 
       [[block]] struct FrameUniforms {
-        [[offset(0)]] projectionMatrix : mat4x4<f32>;
+        projectionMatrix : mat4x4<f32>;
       };
       [[group(1), binding(0)]] var<uniform> frameUniforms : FrameUniforms;
 
@@ -83,8 +83,8 @@ class Tile2DRenderer {
       [[location(0)]] var<out> outColor : vec4<f32>;
       [[location(0)]] var<in> vTex : vec2<f32>;
 
-      [[group(0), binding(1)]] var<uniform_constant> imgSampler : sampler;
-      [[group(0), binding(2)]] var<uniform_constant> img : texture_2d<f32>;
+      [[group(0), binding(1)]] var imgSampler : sampler;
+      [[group(0), binding(2)]] var img : texture_2d<f32>;
 
       [[stage(fragment)]]
       fn main() -> void {
@@ -101,39 +101,43 @@ class Tile2DRenderer {
           renderer.bindGroupLayouts.frameUniforms,
         ]
       }),
-      vertexStage: {
+      vertex: {
         module: this.device.createShaderModule({
           code: vertexSrc
         }),
-        entryPoint: 'main'
+        entryPoint: 'main',
       },
-      fragmentStage: {
+      fragment: {
         module: this.device.createShaderModule({
           code: fragmentSrc
         }),
-        entryPoint: 'main'
+        entryPoint: 'main',
+        targets: [{
+          format: renderer.swapChainFormat,
+          blend: {
+            color: {
+              srcFactor: 'src-alpha',
+              dstFactor: 'one-minus-src-alpha',
+            },
+            alpha: {
+              srcFactor: 'zero',
+              dstFactor: 'one'
+            }
+          }
+        }],
       },
-      primitiveTopology: 'triangle-strip',
-      vertexState: {
-        indexFormat: 'uint32'
+      primitive: {
+        topology: 'triangle-strip',
+        stripIndexFormat: 'uint32',
       },
-      colorStates: [{
-        format: renderer.swapChainFormat,
-        colorBlend: {
-          srcFactor: 'src-alpha',
-          dstFactor: 'one-minus-src-alpha',
-        },
-        alphaBlend: {
-          srcFactor: 'zero',
-          dstFactor: 'one'
-        }
-      }],
-      depthStencilState: {
+      depthStencil: {
         depthWriteEnabled: true,
         depthCompare: 'less',
         format: DEPTH_FORMAT,
       },
-      sampleCount: SAMPLE_COUNT,
+      multisample: {
+        count: SAMPLE_COUNT,
+      }
     });
   }
 
@@ -157,13 +161,13 @@ class TileCubeRenderer {
       [[builtin(position)]] var<out> Position : vec4<f32>;
 
       [[block]] struct TileUniforms {
-        [[offset(0)]] modelViewMatrix : mat4x4<f32>;
+        modelViewMatrix : mat4x4<f32>;
       };
       [[binding(0), set(0)]] var<uniform> tileUniforms : TileUniforms;
 
       [[block]] struct FrameUniforms {
-        [[offset(0)]] projectionMatrix : mat4x4<f32>;
-        [[offset(64)]] cubeSpin : mat4x4<f32>;
+        projectionMatrix : mat4x4<f32>;
+        cubeSpin : mat4x4<f32>;
       };
       [[binding(0), set(1)]] var<uniform> frameUniforms : FrameUniforms;
 
@@ -179,8 +183,8 @@ class TileCubeRenderer {
       [[location(0)]] var<out> outColor : vec4<f32>;
       [[location(0)]] var<in> vTex : vec3<f32>;
 
-      [[binding(1), set(0)]] var<uniform_constant> imgSampler : sampler;
-      [[binding(2), set(0)]] var<uniform_constant> img : texture_cube<f32>;
+      [[binding(1), set(0)]] var imgSampler : sampler;
+      [[binding(2), set(0)]] var img : texture_cube<f32>;
 
       [[stage(fragment)]]
       fn main() -> void {
@@ -197,50 +201,50 @@ class TileCubeRenderer {
           renderer.bindGroupLayouts.frameUniforms,
         ]
       }),
-      vertexStage: {
+      vertex: {
         module: this.device.createShaderModule({
           code: vertexSrc
         }),
-        entryPoint: 'main'
+        entryPoint: 'main',
+        buffers: [{
+          arrayStride: 3 * Float32Array.BYTES_PER_ELEMENT,
+          attributes: [{
+            shaderLocation: 0,
+            format: 'float32x3',
+            offset: 0,
+          }]
+        }],
       },
-      fragmentStage: {
+      fragment: {
         module: this.device.createShaderModule({
           code: fragmentSrc
         }),
-        entryPoint: 'main'
-      },
-      primitiveTopology: 'triangle-list',
-      vertexState: {
-        vertexBuffers: [
-          {
-            arrayStride: 3 * Float32Array.BYTES_PER_ELEMENT,
-            attributes: [
-              {
-                shaderLocation: 0,
-                format: 'float32x3',
-                offset: 0,
-              }
-            ]
+        entryPoint: 'main',
+        targets: [{
+          format: renderer.swapChainFormat,
+          blend: {
+            color: {
+              srcFactor: 'src-alpha',
+              dstFactor: 'one-minus-src-alpha',
+            },
+            alpha: {
+              srcFactor: 'zero',
+              dstFactor: 'one'
+            }
           }
-        ]
+        }],
       },
-      colorStates: [{
-        format: renderer.swapChainFormat,
-        colorBlend: {
-          srcFactor: 'src-alpha',
-          dstFactor: 'one-minus-src-alpha',
-        },
-        alphaBlend: {
-          srcFactor: 'zero',
-          dstFactor: 'one'
-        }
-      }],
-      depthStencilState: {
+      primitive: {
+        topology: 'triangle-list',
+      },
+      depthStencil: {
         depthWriteEnabled: true,
         depthCompare: 'less',
         format: DEPTH_FORMAT,
       },
-      sampleCount: SAMPLE_COUNT,
+      multisample: {
+        count: SAMPLE_COUNT,
+      }
     });
 
     const vertexArray = new Float32Array([
@@ -323,8 +327,7 @@ export class WebGPURenderer {
     }
 
     this.device = await this.adapter.requestDevice({
-      nonGuaranteedFeatures,
-      extensions: nonGuaranteedFeatures // Deprecated
+      nonGuaranteedFeatures
     });
     this.loader = new WebGPUTextureLoader(this.device);
 
@@ -407,31 +410,33 @@ export class WebGPURenderer {
 
     // Background rendering setup
     this.backgroundPipeline = this.device.createRenderPipeline({
-      vertexStage: {
+      vertex: {
         module: this.device.createShaderModule({
           code: wgslSrc.backgroundVertex
         }),
         entryPoint: 'main'
       },
-      fragmentStage: {
+      fragment: {
         module: this.device.createShaderModule({
           code: wgslSrc.fragment
         }),
-        entryPoint: 'main'
+        entryPoint: 'main',
+        targets: [{
+          format: this.swapChainFormat,
+        }],
       },
-      primitiveTopology: 'triangle-strip',
-      vertexState: {
-        indexFormat: 'uint16'
+      primitive: {
+        topology: 'triangle-strip',
+        stripIndexFormat: 'uint16',
       },
-      colorStates: [{
-        format: this.swapChainFormat,
-      }],
-      depthStencilState: {
+      depthStencil: {
         depthWriteEnabled: false,
         depthCompare: 'less',
         format: DEPTH_FORMAT,
       },
-      sampleCount: SAMPLE_COUNT,
+      multisample: {
+        count: SAMPLE_COUNT,
+      }
     });
 
     const checkerboard = await this.loader.fromUrl('textures/checkerboard.png');
