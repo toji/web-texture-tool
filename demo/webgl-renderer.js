@@ -297,7 +297,7 @@ export class WebGLRenderer {
     }).catch((err) => {
       console.warn('Texture failed to load from URL: ', err);
       // If an error occurs plug in a solid color texture to fill it's place.
-      const result = this.textureTool.fromColor(0.75, 0.0, 0.0);
+      const result = this.loader.fromColor(0.75, 0.0, 0.0);
 
       tile.texture = result.texture;
       tile.type = result.type;

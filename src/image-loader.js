@@ -4,14 +4,14 @@
  */
 
 const MIME_TYPE_FORMATS = {
-  'image/jpeg': 'rgb8unorm',
-  'image/png': 'rgba8unorm',
-  'image/apng': 'rgba8unorm',
-  'image/gif': 'rgba8unorm',
-  'image/bmp': 'rgb8unorm',
-  'image/webp': 'rgba8unorm',
-  'image/x-icon': 'rgba8unorm',
-  'image/svg+xml': 'rgba8unorm',
+  'image/jpeg': 'rgb8unorm-srgb',
+  'image/png': 'rgba8unorm-srgb',
+  'image/apng': 'rgba8unorm-srgb',
+  'image/gif': 'rgba8unorm-srgb',
+  'image/bmp': 'rgb8unorm-srgb',
+  'image/webp': 'rgba8unorm-srgb',
+  'image/x-icon': 'rgba8unorm-srgb',
+  'image/svg+xml': 'rgba8unorm-srgb',
 };
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
 

@@ -82,11 +82,11 @@ class WebGPUTextureClient {
     ];
 
     // Add any other formats that are exposed by WebGPU features.
-    const featureList = device.features || device.extensions; // extensions is deprecated
-    if (featureList) { // Firefox seems to not support reporting features or extensions yet.
-      for (const feature of featureList) {
-        const formats = EXTENSION_FORMATS[feature];
-        if (formats) {
+    const featureList = device.features;
+    if (featureList) { // Firefox seems to not support reporting features yet.
+      for (const feature in EXTENSION_FORMATS) {
+        if (featureList.has(feature)) {
+          const formats = EXTENSION_FORMATS[feature];
           this.supportedFormatList.push(...formats);
         }
       }

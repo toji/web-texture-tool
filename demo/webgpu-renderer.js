@@ -309,8 +309,8 @@ export class WebGPURenderer {
     });
     let nonGuaranteedFeatures = [];
 
-    const featureList = this.adapter.features || this.adapter.extensions; // extensions is deprecated
-    if (featureList.indexOf('texture-compression-bc') != -1) {
+    const featureList = this.adapter.features;
+    if (featureList.has('texture-compression-bc') != -1) {
       nonGuaranteedFeatures.push('texture-compression-bc');
     }
 
