@@ -59,7 +59,7 @@ function onWorkerMessage(msg) {
   }
 
   // Upload the image data returned by the worker.
-  const result = pendingTexture.client.fromTextureData(msg.data, pendingTexture.options.mipmaps);
+  const result = pendingTexture.client.fromTextureData(msg.data, pendingTexture.options);
   pendingTexture.resolve(result);
 }
 

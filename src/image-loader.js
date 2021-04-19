@@ -55,12 +55,12 @@ export class ImageLoader {
     if (IMAGE_BITMAP_SUPPORTED) {
       const response = await fetch(url);
       const imageBitmap = await createImageBitmap(await response.blob());
-      return client.fromImageBitmap(imageBitmap, format, options.mipmaps);
+      return client.fromImageBitmap(imageBitmap, format, options);
     } else {
       return new Promise((resolve, reject) => {
         const imageElement = new Image();
         imageElement.addEventListener('load', () => {
-          resolve(client.textureFromImageElement(imageElement, format, options.mipmaps));
+          resolve(client.textureFromImageElement(imageElement, format, options));
         });
         imageElement.addEventListener('error', function(err) {
           reject(err);
@@ -89,12 +89,12 @@ export class ImageLoader {
 
     if (IMAGE_BITMAP_SUPPORTED) {
       const imageBitmap = await createImageBitmap(blob);
-      return client.fromImageBitmap(imageBitmap, format, options.mipmaps);
+      return client.fromImageBitmap(imageBitmap, format, options);
     } else {
       return new Promise((resolve, reject) => {
         const imageElement = new Image();
         imageElement.addEventListener('load', () => {
-          resolve(client.fromImageElement(imageElement, format, options.mipmaps));
+          resolve(client.fromImageElement(imageElement, format, options));
         });
         imageElement.addEventListener('error', function(err) {
           reject(err);

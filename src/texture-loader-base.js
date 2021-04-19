@@ -187,8 +187,9 @@ const TMP_ANCHOR = document.createElement('a');
 const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
 
 const DEFAULT_URL_OPTIONS = {
-  extension: null,
+  mimeType: null,
   mipmaps: true,
+  colorSpace: 'default',
 };
 
 function getMimeTypeLoader(wtt, mimeType) {
@@ -319,10 +320,10 @@ export class TextureLoaderBase {
     const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);
 
     if (!IMAGE_BITMAP_SUPPORTED) {
-      return this[CLIENT].textureFromImageElement(element, 'rgba8unorm', options.mipmaps);
+      return this[CLIENT].textureFromImageElement(element, 'rgba8unorm', options);
     }
     const imageBitmap = await createImageBitmap(element);
-    return this[CLIENT].fromImageBitmap(imageBitmap, 'rgba8unorm', options.mipmaps);
+    return this[CLIENT].fromImageBitmap(imageBitmap, 'rgba8unorm', options);
   }
 
   /** Loads a texture from the given image bitmap.
@@ -337,7 +338,7 @@ export class TextureLoaderBase {
     }
 
     const options = Object.assign({}, DEFAULT_URL_OPTIONS, textureOptions);
-    return this[CLIENT].fromImageBitmap(imageBitmap, 'rgba8unorm', options.mipmaps);
+    return this[CLIENT].fromImageBitmap(imageBitmap, 'rgba8unorm', options);
   }
 
   /**

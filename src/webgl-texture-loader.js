@@ -164,12 +164,12 @@ class WebGLTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps are desired.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  fromImageBitmap(imageBitmap, format, generateMipmaps) {
+  fromImageBitmap(imageBitmap, format, options) {
     const gl = this.gl;
     if (!gl) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
-
+    let generateMipmaps = options.mipmaps;
     // For WebGL 1.0 only generate mipmaps if the texture is a power of two size.
     if (!this.isWebGL2 && generateMipmaps) {
       generateMipmaps = isPowerOfTwo(imageBitmap.width) && isPowerOfTwo(imageBitmap.height);
@@ -207,9 +207,9 @@ class WebGLTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps are desired.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  fromImageElement(image, format, generateMipmaps) {
+  fromImageElement(image, format, options) {
     // The methods called to createa a texture from an image element are exactly the same as the imageBitmap path.
-    return this.textureFromImageBitmap(image, format, generateMipmaps);
+    return this.textureFromImageBitmap(image, format, options);
   }
 
   /**
@@ -221,14 +221,14 @@ class WebGLTextureClient {
    * and the texture format is renderable.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  fromTextureData(textureData, generateMipmaps) {
+  fromTextureData(textureData, options) {
     const gl = this.gl;
     if (!gl) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
 
     const wtFormat = resolveFormat(textureData.format);
-
+    let generateMipmaps = options.mipmaps;
     // Can't automatically generate mipmaps for compressed formats.
     if (wtFormat.compressed) {
       generateMipmaps = false;

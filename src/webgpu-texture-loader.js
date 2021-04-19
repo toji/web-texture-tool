@@ -15,17 +15,46 @@ const IMAGE_BITMAP_SUPPORTED = (typeof createImageBitmap !== 'undefined');
 const EXTENSION_FORMATS = {
   'texture-compression-bc': [
     'bc1-rgba-unorm',
+    'bc1-rgba-unorm-srgb',
     'bc2-rgba-unorm',
+    'bc2-rgba-unorm-srgb',
     'bc3-rgba-unorm',
+    'bc3-rgba-unorm-srgb',
     'bc7-rgba-unorm',
-  ],
-  'textureCompressionBC': [ // Non-standard
-    'bc1-rgba-unorm',
-    'bc2-rgba-unorm',
-    'bc3-rgba-unorm',
-    'bc7-rgba-unorm',
+    'bc7-rgba-unorm-srgb',
   ],
 };
+
+const LINEAR_TO_SRGB_FORMATS = {
+  'rgb8unorm': 'rgb8unorm-srgb',
+  'rgba8unorm': 'rgba8unorm-srgb',
+  'bgra8unorm': 'bgra8unorm-srgb',
+  'bc1-rgba-unorm': 'bc1-rgba-unorm-srgb',
+  'bc2-rgba-unorm': 'bc2-rgba-unorm-srgb',
+  'bc3-rgba-unorm': 'bc3-rgba-unorm-srgb',
+  'bc7-rgba-unorm': 'bc7-rgba-unorm-srgb',
+};
+
+const SRGB_TO_LINEAR_FORMATS = {
+  'rgb8unorm-srgb': 'rgb8unorm',
+  'rgba8unorm-srgb': 'rgba8unorm',
+  'bgra8unorm-srgb': 'bgra8unorm',
+  'bc1-rgba-unorm-srgb': 'bc1-rgba-unorm',
+  'bc2-rgba-unorm-srgb': 'bc2-rgba-unorm',
+  'bc3-rgba-unorm-srgb': 'bc3-rgba-unorm',
+  'bc7-rgba-unorm-srgb': 'bc7-rgba-unorm',
+};
+
+function formatForColorSpace(format, colorSpace) {
+  switch (colorSpace) {
+    case 'sRGB':
+      return LINEAR_TO_SRGB_FORMATS[format] || format;
+    case 'linear':
+      return SRGB_TO_LINEAR_FORMATS[format] || format;
+    default:
+      return format;
+  }
+}
 
 /**
  * Determines the number of mip levels needed for a full mip chain given the width and height of texture level 0.
@@ -117,17 +146,18 @@ class WebGPUTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps are desired.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  async fromImageBitmap(imageBitmap, format, generateMipmaps) {
+  async fromImageBitmap(imageBitmap, format, options) {
     if (!this.device) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
+    const generateMipmaps = options.mipmaps;
     const mipLevelCount = generateMipmaps ? calculateMipLevels(imageBitmap.width, imageBitmap.height) : 1;
 
     const usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
 
     const textureDescriptor = {
       size: {width: imageBitmap.width, height: imageBitmap.height},
-      format,
+      format: formatForColorSpace(format, options.colorSpace),
       usage,
       mipLevelCount,
     };
@@ -158,7 +188,7 @@ class WebGPUTextureClient {
    * @param {boolean} generateMipmaps - True if mipmaps are desired.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  async fromImageElement(image, format, generateMipmaps) {
+  async fromImageElement(image, format, options) {
     if (!this.device) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
@@ -166,7 +196,7 @@ class WebGPUTextureClient {
       throw new Error('Must support ImageBitmap to use WebGPU. (How did you even get to this error?)');
     }
     const imageBitmap = await createImageBitmap(image);
-    return this.textureFromImageBitmap(imageBitmap, format, generateMipmaps);
+    return this.textureFromImageBitmap(imageBitmap, format, options);
   }
 
   /**
@@ -178,7 +208,7 @@ class WebGPUTextureClient {
    * and the texture format is renderable.
    * @returns {module:WebTextureTool.WebTextureResult} - Completed texture and metadata.
    */
-  fromTextureData(textureData, generateMipmaps) {
+  fromTextureData(textureData, options) {
     if (!this.device) {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
@@ -189,7 +219,7 @@ class WebGPUTextureClient {
     }
 
     const blockInfo = wtFormat.compressed || {blockBytes: 4, blockWidth: 1, blockHeight: 1};
-    generateMipmaps = generateMipmaps && wtFormat.canGenerateMipmaps;
+    const generateMipmaps = options.mipmaps && wtFormat.canGenerateMipmaps;
 
     const mipLevelCount = textureData.levels.length > 1 ? textureData.levels.length :
                             (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
@@ -202,7 +232,7 @@ class WebGPUTextureClient {
         height: Math.ceil(textureData.height / blockInfo.blockHeight) * blockInfo.blockHeight,
         depthOrArrayLayers: textureData.depth,
       },
-      format: textureData.format,
+      format: formatForColorSpace(textureData.format, options.colorSpace),
       usage,
       mipLevelCount: mipLevelCount,
     };
