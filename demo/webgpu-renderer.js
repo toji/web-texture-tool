@@ -327,16 +327,16 @@ export class WebGPURenderer {
     });
 
     this.colorAttachment = {
-      // attachment is acquired and set in onCanvasResize.
-      attachment: undefined,
-      // attachment is acquired and set in onFrame.
+      // view is acquired and set in onCanvasResize.
+      view: undefined,
+      // resolveTarget is acquired and set in onFrame.
       resolveTarget: undefined,
       loadValue: {r: 0.0, g: 0.0, b: 0.0, a: 1.0},
     };
 
     this.depthAttachment = {
-      // attachment is acquired and set in onCanvasResize.
-      attachment: undefined,
+      // view is acquired and set in onCanvasResize.
+      view: undefined,
       depthLoadValue: 1.0,
       depthStoreOp: 'store',
       stencilLoadValue: 0,
@@ -450,7 +450,7 @@ export class WebGPURenderer {
       format: this.swapChainFormat,
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
     });
-    this.colorAttachment.attachment = msaaColorTexture.createView();
+    this.colorAttachment.view = msaaColorTexture.createView();
 
     const depthTexture = this.device.createTexture({
       size: { width, height },
@@ -458,7 +458,7 @@ export class WebGPURenderer {
       format: DEPTH_FORMAT,
       usage: GPUTextureUsage.RENDER_ATTACHMENT
     });
-    this.depthAttachment.attachment = depthTexture.createView();
+    this.depthAttachment.view = depthTexture.createView();
   }
 
   initializeTile(tile) {
