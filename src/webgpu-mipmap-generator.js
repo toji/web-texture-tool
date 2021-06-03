@@ -131,6 +131,7 @@ export class WebGPUMipmapGenerator {
           colorAttachments: [{
             view: dstView,
             loadValue: [0, 0, 0, 0],
+            storeOp: 'store'
           }],
         });
 

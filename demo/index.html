@@ -16,7 +16,7 @@
         height: 100%;
       }
 
-      canvas {
+      canvas, .canvas {
         position: absolute;
         left: 0;
         top: 0;
@@ -36,14 +36,15 @@
     <script type='module'>
       import {WebGLRenderer} from './webgl-renderer.js';
       import {WebGPURenderer} from './webgpu-renderer.js';
+      import {DOMRenderer} from './dom-renderer.js';
 
       import {vec3, mat4} from './gl-matrix/src/gl-matrix.js';
       import * as Util from './gl-utils.js';
       import * as dat from './dat.gui.module.js';
 
       const settings = {
-        renderer: 'WebGPU',
-        textureSet: 'ktx',
+        renderer: 'WebGL2',
+        textureSet: 'img',
         mipmaps: true,
         compressedFormats: true,
         pause: false,
@@ -52,6 +53,7 @@
       const gui = new dat.GUI();
 
       gui.add(settings, "renderer", {
+        DOM: 'DOM',
         WebGL: 'WebGL',
         WebGL2: 'WebGL2',
         WebGPU: 'WebGPU'
@@ -279,6 +281,9 @@
         renderer = null;
         let newRenderer = null;
         switch (settings.renderer) {
+          case 'DOM':
+            newRenderer = new DOMRenderer(false);
+            break;
           case 'WebGL':
             newRenderer = new WebGLRenderer(false);
             break;
@@ -297,7 +302,9 @@
 
           renderer = newRenderer;
           renderer.mipmaps = settings.mipmaps;
-          renderer.loader.allowCompressedFormats = settings.compressedFormats;
+          if (renderer.loader) {
+            renderer.loader.allowCompressedFormats = settings.compressedFormats;
+          }
 
           const canvas = newRenderer.canvas;
           document.body.appendChild(canvas);

@@ -137,7 +137,7 @@ class Tile2DRenderer {
     if (tile.texture) {
       this.device.queue.writeBuffer(tile.uniformBuffer, 0, tile.modelView);
       passEncoder.setBindGroup(0, tile.bindGroup);
-      passEncoder.draw(4);
+      passEncoder.draw(4, 1, 0, 0);
     }
   }
 }
@@ -291,7 +291,7 @@ class TileCubeRenderer {
       passEncoder.setBindGroup(0, tile.bindGroup);
       passEncoder.setVertexBuffer(0, this.vertexBuffer);
       passEncoder.setIndexBuffer(this.indexBuffer, 'uint16');
-      passEncoder.drawIndexed(36);
+      passEncoder.drawIndexed(36, 1, 0, 0);
     }
   }
 }
@@ -332,6 +332,7 @@ export class WebGPURenderer {
       // resolveTarget is acquired and set in onFrame.
       resolveTarget: undefined,
       loadValue: {r: 0.0, g: 0.0, b: 0.0, a: 1.0},
+      storeOp: 'store',
     };
 
     this.depthAttachment = {
@@ -428,6 +429,7 @@ export class WebGPURenderer {
     });
 
     const checkerboard = await this.loader.fromUrl('textures/checkerboard.png');
+    //const checkerboard = this.loader.fromColor(0, 0, 0.2, 1.0);
 
     this.backgroundBindGroup = this.device.createBindGroup({
       layout: this.backgroundPipeline.getBindGroupLayout(0),
