@@ -52,22 +52,29 @@
 
       const gui = new dat.GUI();
 
+      const allTextureSets = {
+        Basis: 'basis',
+        KTX: 'ktx',
+        'Uncompressed KTX': 'ktxuncompressed',
+        DDS: 'dds',
+        'Browser formats': 'img',
+        'Browser formats (KTX2)': 'ktximg',
+        Cubemaps: 'cube',
+        'Uncompressed Cubemaps': 'cubeuncompressed',
+        All: 'all'
+      };
+
+      const domTextureSets = {
+        'Browser formats': 'img',
+      };
+
       gui.add(settings, "renderer", {
         DOM: 'DOM',
         WebGL: 'WebGL',
         WebGL2: 'WebGL2',
         WebGPU: 'WebGPU'
       }).onChange(updateRenderer);
-      gui.add(settings, "textureSet", {
-        Basis: 'basis',
-        KTX: 'ktx',
-        'Uncompressed KTX': 'ktxuncompressed',
-        DDS: 'dds',
-        'Browser formats': 'img',
-        Cubemaps: 'cube',
-        'Uncompressed Cubemaps': 'cubeuncompressed',
-        All: 'all'
-      }).onChange(onResetTextures);
+      const textureSetController = gui.add(settings, "textureSet", allTextureSets).onChange(onResetTextures);
       gui.add(settings, "mipmaps").onChange(() => {
         if (renderer) {
           renderer.mipmaps = settings.mipmaps;
@@ -120,6 +127,23 @@
           './textures/ktx/dice-mipmap.ktx',
           './textures/ktx/khronos/ccwn2c08.ktx2',
           './textures/ktx/khronos/color_grid_zstd.ktx2',
+        ],
+        ktximg: [
+          './textures/ktx/img/dice.ktx2',
+          './textures/ktx/img/Chip001_2K_Color.ktx2',
+          './textures/ktx/img/Chip001_2K_Roughness.ktx2',
+          './textures/ktx/img/PaintedMetal017_2K_AmbientOcclusion.ktx2',
+          './textures/ktx/img/PaintedMetal017_2K_Color.ktx2',
+          './textures/ktx/img/PavingStones053_2K_Color.ktx2',
+          './textures/ktx/img/PavingStones053_2K_Normal.ktx2',
+          './textures/ktx/img/Rock026_2K_Color.ktx2',
+          './textures/ktx/img/Rock026_2K_Normal.ktx2',
+          './textures/ktx/img/SheetMetal002_2K_Color.ktx2',
+          './textures/ktx/img/SheetMetal002_2K_Normal.ktx2',
+          './textures/ktx/img/SheetMetal002_2K_Roughness.ktx2',
+          './textures/ktx/img/Tiles052_2K_Color.ktx2',
+          './textures/ktx/img/Tiles052_2K_Roughness.ktx2',
+          './textures/ktx/img/WoodFloor041_2K_Color.ktx2',
         ],
         cube: [
           './textures/ktx/cubemaps/cube-basis.ktx2',
@@ -283,6 +307,8 @@
         switch (settings.renderer) {
           case 'DOM':
             newRenderer = new DOMRenderer(false);
+            settings.textureSet = 'img';
+            textureSetController.updateDisplay();
             break;
           case 'WebGL':
             newRenderer = new WebGLRenderer(false);
