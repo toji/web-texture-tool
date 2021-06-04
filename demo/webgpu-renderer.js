@@ -17,16 +17,18 @@ const wgslSrc = {
     var<private> tex : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
       vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0)
     );
-    [[builtin(position)]] var<out> Position : vec4<f32>;
-    [[builtin(vertex_index)]] var<in> VertexIndex : i32;
 
-    [[location(0)]] var<out> vTex : vec2<f32>;
+    struct VertexOut {
+      [[builtin(position)]] Position : vec4<f32>;
+      [[location(0)]] vTex : vec2<f32>;
+    };
 
     [[stage(vertex)]]
-    fn main() -> void {
-      vTex = tex[VertexIndex];
-      Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
-      return;
+    fn main([[builtin(vertex_index)]] VertexIndex : i32) -> VertexOut {
+      var output : VertexOut;
+      output.vTex = tex[VertexIndex];
+      output.Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+      return output;
     }
   `,
   fragment: `
@@ -52,10 +54,10 @@ class Tile2DRenderer {
         vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0)
       );
 
-      [[builtin(position)]] var<out> Position : vec4<f32>;
-      [[builtin(vertex_index)]] var<in> VertexIndex : i32;
-
-      [[location(0)]] var<out> vTex : vec2<f32>;
+      struct VertexOut {
+        [[builtin(position)]] Position : vec4<f32>;
+        [[location(0)]] vTex : vec2<f32>;
+      };
 
       [[block]] struct TileUniforms {
         modelViewMatrix : mat4x4<f32>;
@@ -68,10 +70,11 @@ class Tile2DRenderer {
       [[group(1), binding(0)]] var<uniform> frameUniforms : FrameUniforms;
 
       [[stage(vertex)]]
-      fn main() -> void {
-        vTex = tex[VertexIndex];
-        Position = frameUniforms.projectionMatrix * tileUniforms.modelViewMatrix * vec4<f32>(pos[VertexIndex], 0.0, 1.0);
-        return;
+      fn main([[builtin(vertex_index)]] VertexIndex : i32) -> VertexOut {
+        var output : VertexOut;
+        output.vTex = tex[VertexIndex];
+        output.Position = frameUniforms.projectionMatrix * tileUniforms.modelViewMatrix * vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+        return output;
       }
     `;
 
@@ -147,10 +150,10 @@ class TileCubeRenderer {
     this.device = renderer.device;
 
     const vertexSrc = `
-      [[location(0)]] var<in> position : vec3<f32>;
-
-      [[location(0)]] var<out> vTex : vec3<f32>;
-      [[builtin(position)]] var<out> Position : vec4<f32>;
+      struct VertexOut {
+        [[builtin(position)]] Position : vec4<f32>;
+        [[location(0)]] vTex : vec3<f32>;
+      };
 
       [[block]] struct TileUniforms {
         modelViewMatrix : mat4x4<f32>;
@@ -164,10 +167,11 @@ class TileCubeRenderer {
       [[binding(0), set(1)]] var<uniform> frameUniforms : FrameUniforms;
 
       [[stage(vertex)]]
-      fn main() -> void {
-        vTex = normalize(position);
-        Position = frameUniforms.projectionMatrix * tileUniforms.modelViewMatrix * frameUniforms.cubeSpin * vec4<f32>(position, 1.0);
-        return;
+      fn main([[location(0)]] position : vec3<f32>) -> VertexOut {
+        var output : VertexOut;
+        output.vTex = normalize(position);
+        output.Position = frameUniforms.projectionMatrix * tileUniforms.modelViewMatrix * frameUniforms.cubeSpin * vec4<f32>(position, 1.0);
+        return output;
       }
     `;
 
