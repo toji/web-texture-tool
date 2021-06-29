@@ -26,7 +26,7 @@ export class WebGPUMipmapGenerator {
             };
 
             [[stage(vertex)]]
-            fn main([[builtin(vertex_index)]] vertexIndex : i32) -> VertexOutput {
+            fn main([[builtin(vertex_index)]] vertexIndex : u32) -> VertexOutput {
               var output : VertexOutput;
               output.texCoord = tex[vertexIndex];
               output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);

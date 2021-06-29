@@ -24,7 +24,7 @@ const wgslSrc = {
     };
 
     [[stage(vertex)]]
-    fn main([[builtin(vertex_index)]] VertexIndex : i32) -> VertexOut {
+    fn main([[builtin(vertex_index)]] VertexIndex : u32) -> VertexOut {
       var output : VertexOut;
       output.vTex = tex[VertexIndex];
       output.Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
@@ -70,7 +70,7 @@ class Tile2DRenderer {
       [[group(1), binding(0)]] var<uniform> frameUniforms : FrameUniforms;
 
       [[stage(vertex)]]
-      fn main([[builtin(vertex_index)]] VertexIndex : i32) -> VertexOut {
+      fn main([[builtin(vertex_index)]] VertexIndex : u32) -> VertexOut {
         var output : VertexOut;
         output.vTex = tex[VertexIndex];
         output.Position = frameUniforms.projectionMatrix * tileUniforms.modelViewMatrix * vec4<f32>(pos[VertexIndex], 0.0, 1.0);
@@ -311,24 +311,20 @@ export class WebGPURenderer {
     this.adapter = await navigator.gpu.requestAdapter({
       powerPreference: "high-performance"
     });
-    let nonGuaranteedFeatures = [];
+    let requiredFeatures = [];
 
     const featureList = this.adapter.features;
-    if (featureList.has('texture-compression-bc') != -1) {
-      nonGuaranteedFeatures.push('texture-compression-bc');
+    if (featureList.has('texture-compression-bc')) {
+      requiredFeatures.push('texture-compression-bc');
     }
 
     this.device = await this.adapter.requestDevice({
-      nonGuaranteedFeatures
+      requiredFeatures
     });
     this.loader = new WebGPUTextureLoader(this.device);
 
     // Swap chain setup
-    this.swapChainFormat = this.context.getSwapChainPreferredFormat(this.adapter);
-    this.swapChain = this.context.configureSwapChain({
-      device: this.device,
-      format: this.swapChainFormat
-    });
+    this.swapChainFormat = this.context.getPreferredFormat(this.adapter);
 
     this.colorAttachment = {
       // view is acquired and set in onCanvasResize.
@@ -450,6 +446,12 @@ export class WebGPURenderer {
   onCanvasResize(width, height) {
     if (!this.device) return;
 
+    this.context.configure({
+      device: this.device,
+      format: this.swapChainFormat,
+      size: { width, height },
+    });
+
     const msaaColorTexture = this.device.createTexture({
       size: { width, height },
       sampleCount: SAMPLE_COUNT,
@@ -547,7 +549,7 @@ export class WebGPURenderer {
     this.device.queue.writeBuffer(this.frameUniformsBuffer, 0, projectionMat);
     this.device.queue.writeBuffer(this.frameUniformsBuffer, 64, cubeSpin);
 
-    this.colorAttachment.resolveTarget = this.swapChain.getCurrentTexture().createView();
+    this.colorAttachment.resolveTarget = this.context.getCurrentTexture().createView();
 
     const commandEncoder = this.device.createCommandEncoder({});
 
