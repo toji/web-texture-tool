@@ -158,13 +158,13 @@ class TileCubeRenderer {
       [[block]] struct TileUniforms {
         modelViewMatrix : mat4x4<f32>;
       };
-      [[binding(0), set(0)]] var<uniform> tileUniforms : TileUniforms;
+      [[binding(0), group(0)]] var<uniform> tileUniforms : TileUniforms;
 
       [[block]] struct FrameUniforms {
         projectionMatrix : mat4x4<f32>;
         cubeSpin : mat4x4<f32>;
       };
-      [[binding(0), set(1)]] var<uniform> frameUniforms : FrameUniforms;
+      [[binding(0), group(1)]] var<uniform> frameUniforms : FrameUniforms;
 
       [[stage(vertex)]]
       fn main([[location(0)]] position : vec3<f32>) -> VertexOut {
@@ -176,8 +176,8 @@ class TileCubeRenderer {
     `;
 
     const fragmentSrc = `
-      [[binding(1), set(0)]] var imgSampler : sampler;
-      [[binding(2), set(0)]] var img : texture_cube<f32>;
+      [[binding(1), group(0)]] var imgSampler : sampler;
+      [[binding(2), group(0)]] var img : texture_cube<f32>;
 
       [[stage(fragment)]]
       fn main([[location(0)]] vTex : vec3<f32>) -> [[location(0)]] vec4<f32> {
@@ -303,7 +303,7 @@ class TileCubeRenderer {
 export class WebGPURenderer {
   constructor() {
     this.canvas = document.createElement('canvas');
-    this.context = this.canvas.getContext('gpupresent');
+    this.context = this.canvas.getContext('webgpu');
     this.mipmaps = true;
   }
 

@@ -153,7 +153,7 @@ class WebGPUTextureClient {
     const generateMipmaps = options.mipmaps;
     const mipLevelCount = generateMipmaps ? calculateMipLevels(imageBitmap.width, imageBitmap.height) : 1;
 
-    const usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT |GPUTextureUsage.SAMPLED;
+    const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT;
 
     const textureDescriptor = {
       size: {width: imageBitmap.width, height: imageBitmap.height},
@@ -224,7 +224,7 @@ class WebGPUTextureClient {
     const mipLevelCount = textureData.levels.length > 1 ? textureData.levels.length :
                             (generateMipmaps ? calculateMipLevels(textureData.width, textureData.height) : 1);
 
-    const usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.SAMPLED;
+    const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST;
 
     const textureDescriptor = {
       size: {
