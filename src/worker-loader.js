@@ -6,6 +6,7 @@
  */
 
 const WORKER_DIR = import.meta.url.replace(/[^\/]*$/, '');
+const MAX_WORKER_POOL_SIZE = 4;
 
 /**
  * Tracks required data for fulfilling a texture request once it has been transcoded.
@@ -74,9 +75,33 @@ export class WorkerLoader {
    */
   constructor(relativeWorkerPath) {
     // Load the worker script.
-    const workerPath = `${WORKER_DIR}${relativeWorkerPath}`;
-    this.worker = new Worker(workerPath);
-    this.worker.onmessage = onWorkerMessage;
+    this.workerPath = `${WORKER_DIR}${relativeWorkerPath}`;
+    this.workerPool = [];
+    this.nextWorker = 0;
+    this.outstandingRequests = 0;
+
+    this.addWorker();
+  }
+
+  addWorker() {
+    const worker = new Worker(this.workerPath);
+    worker.onmessage = (msg) => {
+      onWorkerMessage(msg);
+      this.outstandingRequests--;
+    };
+
+    this.workerPool.push(worker);
+    return worker;
+  }
+
+  selectWorker() {
+    this.outstandingRequests++;
+    console.log(`Getting Worker. Outstanding requests: ${this.outstandingRequests}`);
+    if (this.outstandingRequests >= this.workerPool.length && this.workerPool.length < MAX_WORKER_POOL_SIZE) {
+      console.log(`Spawinging new worker. Total: ${this.workerPool.length+1}`);
+      return this.addWorker();
+    }
+    return this.workerPool[this.nextWorker++ % this.workerPool.length];
   }
 
   /**
@@ -91,7 +116,7 @@ export class WorkerLoader {
   async fromUrl(client, url, options) {
     const pendingTextureId = nextPendingTextureId++;
 
-    this.worker.postMessage({
+    this.selectWorker().postMessage({
       id: pendingTextureId,
       url: url,
       supportedFormats: client.supportedFormats(),
@@ -130,7 +155,7 @@ export class WorkerLoader {
   async fromBuffer(client, buffer, options) {
     const pendingTextureId = nextPendingTextureId++;
 
-    this.worker.postMessage({
+    this.selectWorker().postMessage({
       id: pendingTextureId,
       buffer: buffer,
       supportedFormats: client.supportedFormats(),
