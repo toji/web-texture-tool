@@ -96,9 +96,7 @@ export class WorkerLoader {
 
   selectWorker() {
     this.outstandingRequests++;
-    console.log(`Getting Worker. Outstanding requests: ${this.outstandingRequests}`);
     if (this.outstandingRequests >= this.workerPool.length && this.workerPool.length < MAX_WORKER_POOL_SIZE) {
-      console.log(`Spawinging new worker. Total: ${this.workerPool.length+1}`);
       return this.addWorker();
     }
     return this.workerPool[this.nextWorker++ % this.workerPool.length];
