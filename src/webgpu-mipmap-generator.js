@@ -77,7 +77,7 @@ export class WebGPUMipmapGenerator {
     }
 
     let mipTexture = texture;
-    const arrayLayerCount = textureDescriptor.size.depth || 1; // Only valid for 2D textures.
+    const arrayLayerCount = textureDescriptor.size.depthOrArrayLayers || 1; // Only valid for 2D textures.
 
     // If the texture was created with RENDER_ATTACHMENT usage we can render directly between mip levels.
     const renderToSource = textureDescriptor.usage & GPUTextureUsage.RENDER_ATTACHMENT;
@@ -157,9 +157,7 @@ export class WebGPUMipmapGenerator {
         depthOrArrayLayers: arrayLayerCount,
       };
 
-      // TODO: This should use textureDescriptor.mipLevelCount isntead of textureDescriptor.mipLevelCount-1, but for
-      // some reason it's telling me that I'm "touching outside the texture" if I do that.
-      for (let i = 1; i < textureDescriptor.mipLevelCount-1; ++i) {
+      for (let i = 1; i < textureDescriptor.mipLevelCount; ++i) {
         commandEncoder.copyTextureToTexture({
           texture: mipTexture,
           mipLevel: i-1,
