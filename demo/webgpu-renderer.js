@@ -59,12 +59,12 @@ class Tile2DRenderer {
         [[location(0)]] vTex : vec2<f32>;
       };
 
-      [[block]] struct TileUniforms {
+      struct TileUniforms {
         modelViewMatrix : mat4x4<f32>;
       };
       [[group(0), binding(0)]] var<uniform> tileUniforms : TileUniforms;
 
-      [[block]] struct FrameUniforms {
+      struct FrameUniforms {
         projectionMatrix : mat4x4<f32>;
       };
       [[group(1), binding(0)]] var<uniform> frameUniforms : FrameUniforms;
@@ -155,12 +155,12 @@ class TileCubeRenderer {
         [[location(0)]] vTex : vec3<f32>;
       };
 
-      [[block]] struct TileUniforms {
+      struct TileUniforms {
         modelViewMatrix : mat4x4<f32>;
       };
       [[binding(0), group(0)]] var<uniform> tileUniforms : TileUniforms;
 
-      [[block]] struct FrameUniforms {
+      struct FrameUniforms {
         projectionMatrix : mat4x4<f32>;
         cubeSpin : mat4x4<f32>;
       };
@@ -514,6 +514,11 @@ export class WebGPURenderer {
     tile.type = result.type;
 
     return result;
+  }
+
+  async loadTextureFromNoise(tile) {
+    const result = this.loader.fromNoise(256, 256);
+    return this.updateTileWithResult(tile, result);
   }
 
   loadTextureFromUrl(tile, url) {

@@ -356,10 +356,30 @@ export class TextureLoaderBase {
       throw new Error('Cannot create new textures after object has been destroyed.');
     }
     if (format != 'rgba8unorm' && format != 'rgba8unorm-srgb') {
-      throw new Error('createTextureFromColor only supports "rgba8unorm" and "rgba8unorm-srgb" formats');
+      throw new Error('fromColor only supports "rgba8unorm" and "rgba8unorm-srgb" formats');
     }
     const data = new Uint8Array([r * 255, g * 255, b * 255, a * 255]);
     return this[CLIENT].fromTextureData(new WebTextureData(format, 1, 1, data), false);
+  }
+
+  /**
+   * Creates a noise texture with the specified dimensions. (rgba8unorm format)
+   *
+   * @param {number} width - Width of the noise texture
+   * @param {number} height - Height of the noise texture
+   * @returns {WebTextureResult} - Completed WebTextureResult
+   */
+   fromNoise(width, height) {
+    // TODO: Better noise, more noise varieties, and more texture formats.
+
+    if (!this[CLIENT]) {
+      throw new Error('Cannot create new textures after object has been destroyed.');
+    }
+    const data = new Uint8Array(width * height * 4);
+    for (let i = 0; i < data.length; ++i) {
+      data[i] = Math.random() * 255;
+    }
+    return this[CLIENT].fromTextureData(new WebTextureData('rgba8unorm', width, height, data), false);
   }
 
   /**
