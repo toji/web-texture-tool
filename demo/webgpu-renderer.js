@@ -19,12 +19,12 @@ const wgslSrc = {
     );
 
     struct VertexOut {
-      [[builtin(position)]] Position : vec4<f32>;
-      [[location(0)]] vTex : vec2<f32>;
+      @builtin(position) Position : vec4<f32>;
+      @location(0) vTex : vec2<f32>;
     };
 
-    [[stage(vertex)]]
-    fn main([[builtin(vertex_index)]] VertexIndex : u32) -> VertexOut {
+    @stage(vertex)
+    fn main(@builtin(vertex_index) VertexIndex : u32) -> VertexOut {
       var output : VertexOut;
       output.vTex = tex[VertexIndex];
       output.Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
@@ -32,11 +32,11 @@ const wgslSrc = {
     }
   `,
   fragment: `
-    [[binding(1), group(0)]] var imgSampler : sampler;
-    [[binding(2), group(0)]] var img : texture_2d<f32>;
+    @group(0) @binding(1) var imgSampler : sampler;
+    @group(0) @binding(2) var img : texture_2d<f32>;
 
-    [[stage(fragment)]]
-    fn main([[location(0)]] vTex : vec2<f32>) -> [[location(0)]] vec4<f32> {
+    @stage(fragment)
+    fn main(@location(0) vTex : vec2<f32>) -> @location(0) vec4<f32> {
       return textureSample(img, imgSampler, vTex);
     }
   `
@@ -55,22 +55,22 @@ class Tile2DRenderer {
       );
 
       struct VertexOut {
-        [[builtin(position)]] Position : vec4<f32>;
-        [[location(0)]] vTex : vec2<f32>;
+        @builtin(position) Position : vec4<f32>;
+        @location(0) vTex : vec2<f32>;
       };
 
       struct TileUniforms {
         modelViewMatrix : mat4x4<f32>;
       };
-      [[group(0), binding(0)]] var<uniform> tileUniforms : TileUniforms;
+      @group(0) @binding(0) var<uniform> tileUniforms : TileUniforms;
 
       struct FrameUniforms {
         projectionMatrix : mat4x4<f32>;
       };
-      [[group(1), binding(0)]] var<uniform> frameUniforms : FrameUniforms;
+      @group(1) @binding(0) var<uniform> frameUniforms : FrameUniforms;
 
-      [[stage(vertex)]]
-      fn main([[builtin(vertex_index)]] VertexIndex : u32) -> VertexOut {
+      @stage(vertex)
+      fn main(@builtin(vertex_index) VertexIndex : u32) -> VertexOut {
         var output : VertexOut;
         output.vTex = tex[VertexIndex];
         output.Position = frameUniforms.projectionMatrix * tileUniforms.modelViewMatrix * vec4<f32>(pos[VertexIndex], 0.0, 1.0);
@@ -79,11 +79,11 @@ class Tile2DRenderer {
     `;
 
     const fragmentSrc = `
-      [[group(0), binding(1)]] var imgSampler : sampler;
-      [[group(0), binding(2)]] var img : texture_2d<f32>;
+      @group(0) @binding(1) var imgSampler : sampler;
+      @group(0) @binding(2) var img : texture_2d<f32>;
 
-      [[stage(fragment)]]
-      fn main([[location(0)]] vTex : vec2<f32>) -> [[location(0)]] vec4<f32> {
+      @stage(fragment)
+      fn main(@location(0) vTex : vec2<f32>) -> @location(0) vec4<f32> {
         return textureSample(img, imgSampler, vTex);
       }
     `;
@@ -151,23 +151,23 @@ class TileCubeRenderer {
 
     const vertexSrc = `
       struct VertexOut {
-        [[builtin(position)]] Position : vec4<f32>;
-        [[location(0)]] vTex : vec3<f32>;
+        @builtin(position) Position : vec4<f32>;
+        @location(0) vTex : vec3<f32>;
       };
 
       struct TileUniforms {
         modelViewMatrix : mat4x4<f32>;
       };
-      [[binding(0), group(0)]] var<uniform> tileUniforms : TileUniforms;
+      @group(0) @binding(0) var<uniform> tileUniforms : TileUniforms;
 
       struct FrameUniforms {
         projectionMatrix : mat4x4<f32>;
         cubeSpin : mat4x4<f32>;
       };
-      [[binding(0), group(1)]] var<uniform> frameUniforms : FrameUniforms;
+      @group(1) @binding(0) var<uniform> frameUniforms : FrameUniforms;
 
-      [[stage(vertex)]]
-      fn main([[location(0)]] position : vec3<f32>) -> VertexOut {
+      @stage(vertex)
+      fn main(@location(0) position : vec3<f32>) -> VertexOut {
         var output : VertexOut;
         output.vTex = normalize(position);
         output.Position = frameUniforms.projectionMatrix * tileUniforms.modelViewMatrix * frameUniforms.cubeSpin * vec4<f32>(position, 1.0);
@@ -176,11 +176,11 @@ class TileCubeRenderer {
     `;
 
     const fragmentSrc = `
-      [[binding(1), group(0)]] var imgSampler : sampler;
-      [[binding(2), group(0)]] var img : texture_cube<f32>;
+      @group(0) @binding(1) var imgSampler : sampler;
+      @group(0) @binding(2) var img : texture_cube<f32>;
 
-      [[stage(fragment)]]
-      fn main([[location(0)]] vTex : vec3<f32>) -> [[location(0)]] vec4<f32> {
+      @stage(fragment)
+      fn main(@location(0) vTex : vec3<f32>) -> @location(0) vec4<f32> {
         return textureSample(img, imgSampler, vTex);
       }
     `;
