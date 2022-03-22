@@ -331,17 +331,17 @@ export class WebGPURenderer {
       view: undefined,
       // resolveTarget is acquired and set in onFrame.
       resolveTarget: undefined,
-      loadValue: {r: 0.0, g: 0.0, b: 0.0, a: 1.0},
+      clearValue: {r: 0.0, g: 0.0, b: 0.0, a: 1.0},
+      loadOp: 'clear',
       storeOp: 'store',
     };
 
     this.depthAttachment = {
       // view is acquired and set in onCanvasResize.
       view: undefined,
-      depthLoadValue: 1.0,
+      depthClearValue: 1.0,
+      depthLoadOp: 'clear',
       depthStoreOp: 'store',
-      stencilLoadValue: 0,
-      stencilStoreOp: 'store',
     };
 
     this.renderPassDescriptor = {
@@ -450,6 +450,7 @@ export class WebGPURenderer {
       device: this.device,
       format: this.swapChainFormat,
       size: { width, height },
+      compositingAlphaMode: 'opaque'
     });
 
     const msaaColorTexture = this.device.createTexture({
@@ -590,7 +591,7 @@ export class WebGPURenderer {
       }
     }
 
-    passEncoder.endPass();
+    passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);
   }
 

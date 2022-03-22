@@ -118,7 +118,7 @@ export class WebGPUMipmapGenerator {
         const passEncoder = commandEncoder.beginRenderPass({
           colorAttachments: [{
             view: dstView,
-            loadValue: [0, 0, 0, 0],
+            loadOp: 'clear',
             storeOp: 'store'
           }],
         });
@@ -137,7 +137,7 @@ export class WebGPUMipmapGenerator {
         passEncoder.setPipeline(pipeline);
         passEncoder.setBindGroup(0, bindGroup);
         passEncoder.draw(3, 1, 0, 0);
-        passEncoder.endPass();
+        passEncoder.end();
 
         srcView = dstView;
       }
