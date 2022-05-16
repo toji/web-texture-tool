@@ -17,8 +17,8 @@ export class WebGPUMipmapGenerator {
               vec2<f32>(-1.0, -1.0), vec2<f32>(-1.0, 3.0), vec2<f32>(3.0, -1.0));
 
             struct VertexOutput {
-              @builtin(position) position : vec4<f32>;
-              @location(0) texCoord : vec2<f32>;
+              @builtin(position) position : vec4<f32>,
+              @location(0) texCoord : vec2<f32>,
             };
 
             @stage(vertex)
@@ -41,6 +41,7 @@ export class WebGPUMipmapGenerator {
       }
 
       pipeline = this.device.createRenderPipeline({
+        layout: 'auto',
         vertex: {
           module: this.mipmapShaderModule,
           entryPoint: 'vertexMain',
