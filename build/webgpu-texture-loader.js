@@ -7,7 +7,7 @@ var k={"image/jpeg":"rgb8unorm","image/png":"rgba8unorm","image/apng":"rgba8unor
               @location(0) texCoord : vec2<f32>,
             };
 
-            @stage(vertex)
+            @vertex
             fn vertexMain(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
               var output : VertexOutput;
               output.texCoord = pos[vertexIndex] * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5);
@@ -18,7 +18,7 @@ var k={"image/jpeg":"rgb8unorm","image/png":"rgba8unorm","image/apng":"rgba8unor
             @group(0) @binding(0) var imgSampler : sampler;
             @group(0) @binding(1) var img : texture_2d<f32>;
 
-            @stage(fragment)
+            @fragment
             fn fragmentMain(@location(0) texCoord : vec2<f32>) -> @location(0) vec4<f32> {
               return textureSample(img, imgSampler, texCoord);
             }
