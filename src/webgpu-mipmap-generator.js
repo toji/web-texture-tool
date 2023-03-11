@@ -12,6 +12,7 @@ export class WebGPUMipmapGenerator {
       // Shader modules is shared between all pipelines, so only create once.
       if (!this.mipmapShaderModule) {
         this.mipmapShaderModule = this.device.createShaderModule({
+          label: 'Mipmap Generator',
           code: `
             var<private> pos : array<vec2<f32>, 3> = array<vec2<f32>, 3>(
               vec2<f32>(-1.0, -1.0), vec2<f32>(-1.0, 3.0), vec2<f32>(3.0, -1.0));
@@ -38,10 +39,27 @@ export class WebGPUMipmapGenerator {
             }
           `,
         });
+
+        this.bindGroupLayout = this.device.createBindGroupLayout({
+          label: 'Mipmap Generator',
+          entries: [{
+            binding: 0,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {},
+          }, {
+            binding: 1,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: {},
+          }]
+        });
+        this.pipelineLayout = this.device.createPipelineLayout({
+          label: 'Mipmap Generator',
+          bindGroupLayouts: [ this.bindGroupLayout ],
+        })
       }
 
       pipeline = this.device.createRenderPipeline({
-        layout: 'auto',
+        layout: this.pipelineLayout,
         vertex: {
           module: this.mipmapShaderModule,
           entryPoint: 'vertexMain',
@@ -94,9 +112,6 @@ export class WebGPUMipmapGenerator {
     }
 
     const commandEncoder = this.device.createCommandEncoder({});
-    // TODO: Consider making this static.
-    const bindGroupLayout = pipeline.getBindGroupLayout(0);
-
     for (let arrayLayer = 0; arrayLayer < arrayLayerCount; ++arrayLayer) {
       let srcView = texture.createView({
         baseMipLevel: 0,
@@ -125,7 +140,7 @@ export class WebGPUMipmapGenerator {
         });
 
         const bindGroup = this.device.createBindGroup({
-          layout: bindGroupLayout,
+          layout: this.bindGroupLayout,
           entries: [{
             binding: 0,
             resource: this.sampler,
