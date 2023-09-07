@@ -100,8 +100,8 @@ export class WebGPUMipmapGenerator {
       // texture, since we already have the top level.
       const mipTextureDescriptor = {
         size: {
-          width: Math.ceil(textureDescriptor.size.width / 2),
-          height: Math.ceil(textureDescriptor.size.height / 2),
+          width: Math.max(1, textureDescriptor.size.width >>> 1),
+          height: Math.max(1, textureDescriptor.size.height >>> 1),
           depthOrArrayLayers: arrayLayerCount,
         },
         format: textureDescriptor.format,
@@ -163,8 +163,8 @@ export class WebGPUMipmapGenerator {
     // to the source.
     if (!renderToSource) {
       const mipLevelSize = {
-        width: Math.ceil(textureDescriptor.size.width / 2),
-        height: Math.ceil(textureDescriptor.size.height / 2),
+        width: Math.max(1, textureDescriptor.size.width >>> 1),
+        height: Math.max(1, textureDescriptor.size.height >>> 1),
         depthOrArrayLayers: arrayLayerCount,
       };
 
@@ -177,8 +177,8 @@ export class WebGPUMipmapGenerator {
           mipLevel: i,
         }, mipLevelSize);
 
-        mipLevelSize.width = Math.ceil(mipLevelSize.width / 2);
-        mipLevelSize.height = Math.ceil(mipLevelSize.height / 2);
+        mipLevelSize.width = Math.max(1, mipLevelSize.width >>> 1);
+        mipLevelSize.height = Math.max(1, mipLevelSize.height >>> 1);
       }
     }
 
